@@ -31,7 +31,7 @@ def add_excel_table(worksheet, start_row, num_rows, num_cols, table_name_prefix=
     worksheet.add_table(table)
 
 
-def auto_fit_columns(worksheet, max_width=50):
+def auto_fit_columns(worksheet, max_width=80):
     """Auto-adjust column widths based on cell content."""
     for col_cells in worksheet.columns:
         max_len = 0
@@ -41,10 +41,10 @@ def auto_fit_columns(worksheet, max_width=50):
                 cell_len = len(str(cell.value))
                 if cell_len > max_len:
                     max_len = cell_len
-        worksheet.column_dimensions[col_letter].width = min(max_len + 2, max_width)
+        worksheet.column_dimensions[col_letter].width = min(max_len + 4, max_width)
 
 
-BASE_DIR = "/yupengzh/reports_2026-04-08-10-41-53"
+BASE_DIR = "/yupengzh/reports_2026-04-13-09-25-42"
 WORKLOADS_DIR = "/yupengzh/xpu-perf/micro_perf/workloads"
 
 OP_GROUPS = [
@@ -118,8 +118,9 @@ OP_CATEGORY_MAP = {
 OP_ORDER_MAP = {op_name: index for index, op_name in enumerate(ORDERED_OPS)}
 
 PEAK_BW_GBS = 456.0
-PEAK_TFLOPS_FP32 = 12.0
+PEAK_TFLOPS_FP32 = 12.28
 PEAK_TFLOPS_LOW = 98.5  # bf16 / fp16
+PEAK_TFLOPS_INT8 = 197.0
 METRIC_COLUMNS = {
     "sku_name",
     "op_name",
@@ -182,7 +183,12 @@ def normalize_scalar(value):
 
 def compute_mfu(row):
     dtype = str(row.get("dtype", "")).lower()
-    peak = PEAK_TFLOPS_FP32 if "float32" in dtype or dtype == "fp32" else PEAK_TFLOPS_LOW
+    if "float32" in dtype or dtype in ("fp32", "tf32", "tfloat32"):
+        peak = PEAK_TFLOPS_FP32
+    elif dtype == "int8":
+        peak = PEAK_TFLOPS_INT8
+    else:
+        peak = PEAK_TFLOPS_LOW
     value = row.get("calc_flops_power(tflops)")
     if pd.isna(value) or peak == 0:
         return None
@@ -625,7 +631,10 @@ def main():
     base_dir = BASE_DIR
     workloads_dir = args.workloads_dir
     logs_dir = base_dir
-    output_file = os.path.join(base_dir, os.path.basename(base_dir) + ".xlsx")
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    reports_dir = os.path.join(script_dir, "reports")
+    os.makedirs(reports_dir, exist_ok=True)
+    output_file = os.path.join(reports_dir, os.path.basename(base_dir) + ".xlsx")
     report_csv_base = resolve_report_csv_base(base_dir)
     sku_name = os.path.basename(report_csv_base)
 
@@ -639,10 +648,13 @@ def main():
     with pd.ExcelWriter(output_file, engine="openpyxl") as writer:
         if provider_status_df.empty:
             provider_status_df = pd.DataFrame([{"category": "", "op_name": "", "provider": "", "failed_case_count": 0}])
-        provider_status_df.to_excel(writer, sheet_name="all", index=False)
-        add_excel_table(writer.sheets["all"], 0, len(provider_status_df), len(provider_status_df.columns), "all")
-        auto_fit_columns(writer.sheets["all"])
-        print(f"  Added sheet: all ({len(provider_status_df)} rows)")
+        provider_status_df["sheet_link"] = ""
+        provider_status_df.to_excel(writer, sheet_name="Summary", index=False)
+        summary_ws = writer.sheets["Summary"]
+        # Build sheet_link column hyperlinks (column index for sheet_link)
+        link_col_idx = list(provider_status_df.columns).index("sheet_link") + 1  # 1-based
+        link_col_letter = get_column_letter(link_col_idx)
+        op_sheet_names = {}  # op_name -> sheet_name mapping, filled later
 
         for op_name in ORDERED_OPS:
             if op_name not in enriched_report_frames:
@@ -651,11 +663,13 @@ def main():
             if not provider_dict:
                 pd.DataFrame().to_excel(writer, sheet_name=op_name[:31], index=False)
                 print(f"  Added sheet: {op_name[:31]} (0 rows)")
+                op_sheet_names[op_name] = op_name[:31]
                 continue
 
             sheet_name = op_name[:31]
+            op_sheet_names[op_name] = sheet_name
             providers = sorted(provider_dict.keys())
-            current_row = 0
+            current_row = 1  # row 0 reserved for back link
             total_rows = 0
             missing_count = 0
 
@@ -669,10 +683,30 @@ def main():
                 total_rows += len(provider_df)
                 current_row += len(provider_df) + 2  # header + data + 1 blank row
 
+            # Add "Back to Summary" hyperlink in cell A1 of each op sheet
+            ws = writer.sheets[sheet_name]
+            ws["A1"] = "← Back to Summary"
+            ws["A1"].hyperlink = "#Summary!A1"
+            ws["A1"].style = "Hyperlink"
+
             print(
                 f"  Added sheet: {sheet_name} ({total_rows} rows, providers: {', '.join(providers)}, missing_cases: {missing_count})"
             )
             auto_fit_columns(writer.sheets[sheet_name])
+
+        # Now add hyperlinks in Summary sheet for each op row
+        for row_idx, row_data in provider_status_df.iterrows():
+            excel_row = row_idx + 2  # 1 for header, 1 for 0-based index
+            target_op = row_data["op_name"]
+            if target_op in op_sheet_names:
+                target_sheet = op_sheet_names[target_op]
+                cell = summary_ws[f"{link_col_letter}{excel_row}"]
+                cell.value = target_sheet
+                cell.hyperlink = f"#{target_sheet}!A1"
+                cell.style = "Hyperlink"
+        add_excel_table(summary_ws, 0, len(provider_status_df), len(provider_status_df.columns), "Summary")
+        auto_fit_columns(summary_ws)
+        print(f"  Added sheet: Summary ({len(provider_status_df)} rows)")
 
     print(f"\nDone! Output: {output_file}")
 

@@ -11,7 +11,10 @@ REPORT_DIR = sys.argv[1] if len(sys.argv) > 1 else "/yupengzh/reports_2026-04-08
 # Extract timestamp from report dir path (e.g. "reports_2026-04-08-10-41-53" -> "2026-04-08-10-41-53")
 import re as _re
 _ts_match = _re.search(r'reports_(\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2})', REPORT_DIR)
-_default_out = "/yupengzh/diagram/reports-{}.html".format(_ts_match.group(1)) if _ts_match else "/yupengzh/diagram/all-ops-chart.html"
+_script_dir = os.path.dirname(os.path.abspath(__file__))
+_reports_dir = os.path.join(_script_dir, "reports")
+os.makedirs(_reports_dir, exist_ok=True)
+_default_out = os.path.join(_reports_dir, "reports-{}.html".format(_ts_match.group(1))) if _ts_match else os.path.join(_reports_dir, "all-ops-chart.html")
 OUT_HTML = sys.argv[2] if len(sys.argv) > 2 else _default_out
 ARCH_NAME = os.path.basename(REPORT_DIR.rstrip('/'))
 
