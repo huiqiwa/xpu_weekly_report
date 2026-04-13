@@ -1,0 +1,67 @@
+version: '3.8'
+services:
+  node:
+    # build: .
+    image: xpu_perf-node:latest
+    container_name: yupengzh-xpu-perf
+    entrypoint: []
+    stdin_open: true
+    tty: true
+    environment:
+      - http_proxy=http://proxy-ir.intel.com:911
+      - https_proxy=http://proxy-ir.intel.com:912
+      - no_proxy=localhost,127.0.0.1
+      - HTTP_PROXY=http://proxy-ir.intel.com:911
+      - HTTPS_PROXY=http://proxy-ir.intel.com:912
+      - NO_PROXY=localhost,127.0.0.1
+      - TZ=Asia/Shanghai
+    command: /bin/bash
+    volumes:
+      - /data:/data
+      - /dev/dri:/dev/dri
+      - .:/yupengzh
+      - ./ccache:/root/.cache/ccache
+    devices:
+      - /dev/dri:/dev/dri
+    network_mode: host
+    working_dir: /yupengzh
+    security_opt:
+      - label=disable
+    privileged: true
+    ipc: host
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+  node1:
+    image: intel/vllm:0.17.0-xpu
+    container_name: yupengzh-tmp
+    entrypoint: []
+    stdin_open: true
+    tty: true
+    environment:
+      - http_proxy=http://proxy-ir.intel.com:911
+      - https_proxy=http://proxy-ir.intel.com:912
+      - no_proxy=localhost,127.0.0.1
+      - HTTP_PROXY=http://proxy-ir.intel.com:911
+      - HTTPS_PROXY=http://proxy-ir.intel.com:912
+      - NO_PROXY=localhost,127.0.0.1
+      - TZ=Asia/Shanghai
+    command: /bin/bash
+    volumes:
+      - /data:/data
+      - /dev/dri:/dev/dri
+      - .:/yupengzh
+      - ./ccache:/root/.cache/ccache
+    devices:
+      - /dev/dri:/dev/dri
+    network_mode: host
+    working_dir: /yupengzh
+    security_opt:
+      - label=disable
+    privileged: true
+    ipc: host
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
