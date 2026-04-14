@@ -261,13 +261,16 @@ def gen_op_section(op_name, rows):
         row["MBU(%)"] = round(float(mem_bw) / HW_MEM_BW_GBs * 100, 2) if HW_MEM_BW_GBs else 0
         # MFU = calc_flops_power / peak_tflops * 100 (peak depends on dtype)
         flops = row.get("calc_flops_power(tflops)", 0) or 0
-        dtype = str(row.get("dtype", "")).lower()
-        if dtype in ("float32", "fp32", "tf32", "tfloat32"):
-            peak = HW_PEAK_TFLOPS_FP32
-        elif dtype in ("int8",):
+        if op_name in ("sage_attention_page", "sage_attention_decode_page"):
             peak = HW_PEAK_TFLOPS_INT8
         else:
-            peak = HW_PEAK_TFLOPS_FP16
+            dtype = str(row.get("dtype", "")).lower()
+            if dtype in ("float32", "fp32", "tf32", "tfloat32"):
+                peak = HW_PEAK_TFLOPS_FP32
+            elif dtype in ("int8",):
+                peak = HW_PEAK_TFLOPS_INT8
+            else:
+                peak = HW_PEAK_TFLOPS_FP16
         row["MFU(%)"] = round(float(flops) / peak * 100, 2) if peak else 0
         json_rows.append(row)
 

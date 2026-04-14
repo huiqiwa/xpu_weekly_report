@@ -181,14 +181,21 @@ def normalize_scalar(value):
     return ("{:.12g}".format(number)).lower()
 
 
+SAGE_ATTENTION_OPS = {"sage_attention_page", "sage_attention_decode_page"}
+
+
 def compute_mfu(row):
-    dtype = str(row.get("dtype", "")).lower()
-    if "float32" in dtype or dtype in ("fp32", "tf32", "tfloat32"):
-        peak = PEAK_TFLOPS_FP32
-    elif dtype == "int8":
+    op_name = str(row.get("op_name", ""))
+    if op_name in SAGE_ATTENTION_OPS:
         peak = PEAK_TFLOPS_INT8
     else:
-        peak = PEAK_TFLOPS_LOW
+        dtype = str(row.get("dtype", "")).lower()
+        if "float32" in dtype or dtype in ("fp32", "tf32", "tfloat32"):
+            peak = PEAK_TFLOPS_FP32
+        elif dtype == "int8":
+            peak = PEAK_TFLOPS_INT8
+        else:
+            peak = PEAK_TFLOPS_LOW
     value = row.get("calc_flops_power(tflops)")
     if pd.isna(value) or peak == 0:
         return None
