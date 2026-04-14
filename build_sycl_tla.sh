@@ -1,22 +1,12 @@
 mkdir build && cd build
 
-cmake .. -DDPCPP_SYCL_TARGET=intel_gpu_bmg_g21   # 只生成 bmg-g21，不带 bmg-g31
+cmake .. \
+  -G Ninja \
+  -DCUTLASS_ENABLE_SYCL=ON \
+  -DDPCPP_SYCL_TARGET=intel_gpu_bmg_g21 \
+  -DCMAKE_CXX_COMPILER=icpx \
+  -DCMAKE_C_COMPILER=icx \
+  -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+  -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
-cmake --build . --target \
-  06_xe_fmha_fwd_prefill_bfloat16_t_hdim64 \
-  06_xe_fmha_fwd_prefill_bfloat16_t_hdim96 \
-  06_xe_fmha_fwd_prefill_bfloat16_t_hdim128 \
-  06_xe_fmha_fwd_prefill_bfloat16_t_hdim192 \
-  06_xe_fmha_fwd_decode_bfloat16_t_hdim64 \
-  06_xe_fmha_fwd_decode_bfloat16_t_hdim96 \
-  06_xe_fmha_fwd_decode_bfloat16_t_hdim128 \
-  06_xe_fmha_fwd_decode_bfloat16_t_hdim192 \
-  06_xe_fmha_fwd_prefill_float_e4m3_t_hdim64 \
-  06_xe_fmha_fwd_prefill_float_e4m3_t_hdim96 \
-  06_xe_fmha_fwd_prefill_float_e4m3_t_hdim128 \
-  06_xe_fmha_fwd_prefill_float_e4m3_t_hdim192 \
-  06_xe_fmha_fwd_decode_float_e4m3_t_hdim64 \
-  06_xe_fmha_fwd_decode_float_e4m3_t_hdim96 \
-  06_xe_fmha_fwd_decode_float_e4m3_t_hdim128 \
-  06_xe_fmha_fwd_decode_float_e4m3_t_hdim192 \
-  -j32
+ninja -j32 $(ninja -t targets all | grep -oE '^(06_|00_)[^:]+')
