@@ -44,8 +44,10 @@ def auto_fit_columns(worksheet, max_width=80):
         worksheet.column_dimensions[col_letter].width = min(max_len + 4, max_width)
 
 
-BASE_DIR = "/yupengzh/reports_2026-04-13-09-25-42"
-WORKLOADS_DIR = "/yupengzh/xpu-perf/micro_perf/workloads"
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+_PARENT_DIR = os.path.dirname(_SCRIPT_DIR)
+BASE_DIR = os.path.join(_PARENT_DIR, "reports_2026-04-13-09-25-42")
+WORKLOADS_DIR = os.path.join(_PARENT_DIR, "xpu-perf", "micro_perf", "workloads")
 
 OP_GROUPS = [
     (
@@ -715,6 +717,9 @@ def main():
                 cell.style = "Hyperlink"
         add_excel_table(summary_ws, 0, len(provider_status_df), len(provider_status_df.columns), "Summary")
         auto_fit_columns(summary_ws)
+        # Fix "Next step Plan" column width
+        plan_col_idx = list(provider_status_df.columns).index("Next step Plan") + 1
+        summary_ws.column_dimensions[get_column_letter(plan_col_idx)].width = 47
         print(f"  Added sheet: Summary ({len(provider_status_df)} rows)")
 
     print(f"\nDone! Output: {output_file}")
