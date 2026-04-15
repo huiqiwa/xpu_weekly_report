@@ -7,14 +7,28 @@ The HTML is fully static — no dynamic JS DOM building, works with file:// dire
 import csv, glob, json, os, sys
 from collections import OrderedDict
 
-REPORT_DIR = sys.argv[1] if len(sys.argv) > 1 else "/yupengzh/reports_2026-04-08-10-41-53/INTEL/Intel(R) Graphics [0xe211]"
-# Extract timestamp from report dir path (e.g. "reports_2026-04-08-10-41-53" -> "2026-04-08-10-41-53")
 import re as _re
-_ts_match = _re.search(r'reports_(\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2})', REPORT_DIR)
 _script_dir = os.path.dirname(os.path.abspath(__file__))
-_reports_dir = os.path.join(_script_dir, "reports")
-os.makedirs(_reports_dir, exist_ok=True)
-_default_out = os.path.join(_reports_dir, "reports-{}.html".format(_ts_match.group(1))) if _ts_match else os.path.join(_reports_dir, "all-ops-chart.html")
+_reports_root = os.path.join(_script_dir, "reports")
+
+def _resolve_default_report_dir():
+    candidates = sorted(
+        [d for d in glob.glob(os.path.join(glob.escape(_reports_root), "reports_*")) if os.path.isdir(d)]
+    )
+    if not candidates:
+        raise FileNotFoundError(f"No report directories found under: {_reports_root}")
+    base = candidates[-1]
+    intel_root = os.path.join(base, "INTEL")
+    devices = [p for p in sorted(glob.glob(os.path.join(glob.escape(intel_root), "*"))) if os.path.isdir(p)]
+    if not devices:
+        raise FileNotFoundError(f"No device directory found under: {intel_root}")
+    return devices[0]
+
+REPORT_DIR = sys.argv[1] if len(sys.argv) > 1 else _resolve_default_report_dir()
+# Extract timestamp from report dir path (e.g. "reports_2026-04-08-10-41-53" -> "2026-04-08-10-41-53")
+_ts_match = _re.search(r'reports_(\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2})', REPORT_DIR)
+os.makedirs(_reports_root, exist_ok=True)
+_default_out = os.path.join(_reports_root, "reports-{}.html".format(_ts_match.group(1))) if _ts_match else os.path.join(_reports_root, "all-ops-chart.html")
 OUT_HTML = sys.argv[2] if len(sys.argv) > 2 else _default_out
 ARCH_NAME = os.path.basename(REPORT_DIR.rstrip('/'))
 

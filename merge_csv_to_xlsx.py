@@ -46,7 +46,13 @@ def auto_fit_columns(worksheet, max_width=80):
 
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 _PARENT_DIR = os.path.dirname(_SCRIPT_DIR)
-BASE_DIR = os.path.join(_PARENT_DIR, "reports_2026-04-13-09-25-42")
+_REPORTS_ROOT = os.path.join(_SCRIPT_DIR, "reports")
+_report_candidates = sorted(
+    [d for d in glob.glob(os.path.join(glob.escape(_REPORTS_ROOT), "reports_*")) if os.path.isdir(d)]
+)
+if not _report_candidates:
+    raise FileNotFoundError(f"No report directories found under: {_REPORTS_ROOT}")
+BASE_DIR = _report_candidates[-1]
 WORKLOADS_DIR = os.path.join(_PARENT_DIR, "xpu-perf", "micro_perf", "workloads")
 
 OP_GROUPS = [
@@ -605,16 +611,25 @@ def build_provider_status(report_frames, registered_df, failed_df, enriched_repo
                         "error_msg": existing["error_msg"],
                     }
 
+    # Build total case counts from enriched report frames
+    total_cases = {}
+    if enriched_report_frames:
+        for op_name, provider_dict in enriched_report_frames.items():
+            for provider, edf in provider_dict.items():
+                total_cases[(op_name, provider)] = len(edf)
+
     status_rows = []
     for row in universe_df.itertuples(index=False):
         key = (row.op_name, row.provider)
         failure_info = failure_groups.get(key, {"failed_case_count": 0, "error_msg": ""})
+        total = total_cases.get(key, 0)
+        failed = failure_info["failed_case_count"]
 
         status_rows.append(
             {
                 "op_name": row.op_name,
                 "provider": row.provider,
-                "failed_case_count": failure_info["failed_case_count"],
+                "failed_case_count": f"{failed}/{total}",
                 "error_msg": failure_info["error_msg"],
             }
         )

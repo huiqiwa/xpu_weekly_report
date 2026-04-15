@@ -1,9 +1,10 @@
-DEVICE=0,1
-REPORT_DIR=/yupengzh/reports_$(TZ='Asia/Shanghai' date +%Y-%m-%d-%H-%M-%S)
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+DEVICE=1,2,3,4
+REPORT_DIR="${SCRIPT_DIR}/reports/reports_$(TZ='Asia/Shanghai' date +%Y-%m-%d-%H-%M-%S)"
 
-mkdir -p $REPORT_DIR
+mkdir -p "$REPORT_DIR"
 
-cd /yupengzh/xpu-perf/micro_perf
+cd "${SCRIPT_DIR}/../xpu-perf/micro_perf"
 
 # python launch.py --task_dir workloads/basic --device 0,1,2,3 --backend INTEL --task all --report_dir all_reports  &> /yupengzh/xpu-perf-logs/basic.txt
 
