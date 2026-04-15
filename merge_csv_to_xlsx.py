@@ -656,6 +656,8 @@ def main():
         if provider_status_df.empty:
             provider_status_df = pd.DataFrame([{"category": "", "op_name": "", "provider": "", "failed_case_count": 0}])
         provider_status_df["sheet_link"] = ""
+        provider_status_df["AICE Owner"] = ""
+        provider_status_df["Next step Plan"] = ""
         provider_status_df.to_excel(writer, sheet_name="Summary", index=False)
         summary_ws = writer.sheets["Summary"]
         # Build sheet_link column hyperlinks (column index for sheet_link)
