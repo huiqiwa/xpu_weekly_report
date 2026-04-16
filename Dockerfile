@@ -81,6 +81,28 @@ RUN --mount=type=cache,target=/root/.cache/ccache \
       -DCMAKE_C_COMPILER=icx && \
     ninja -j32 $(ninja -t targets all | grep -oE '^(06_|00_)[^:]+')
 
+RUN --mount=type=cache,target=/root/.cache/ccache \
+    --mount=type=cache,target=/root/.cache/git-src \
+    source /opt/intel/oneapi/setvars.sh --force && \
+    source /opt/intel/oneapi/ccl/latest/env/vars.sh --force && \
+    if [ ! -d /root/.cache/git-src/intel-extension-for-pytorch/.git ]; then \
+        git clone https://github.com/abenmao/intel-extension-for-pytorch /root/.cache/git-src/intel-extension-for-pytorch; \
+    fi && \
+    cd /root/.cache/git-src/intel-extension-for-pytorch && \
+    git fetch --all && \
+    git checkout quant_matmul_v2.10 && \
+    git submodule sync && \
+    git submodule update --init --recursive && \
+    cd /workspace && \
+    cp -a /root/.cache/git-src/intel-extension-for-pytorch . && \
+    cd intel-extension-for-pytorch && \
+    MAX_JOBS=64 \
+    TORCH_XPU_ARCH_LIST="bmg" \
+    CXXFLAGS="-w" \
+    pip install -v . --no-build-isolation 2>&1 | \
+    grep -aiE '\[.*%\]|error[: ]|FAILED|fatal[: ]|Building wheel|Successfully|running |creating |copying .*->'
+
+
 RUN --mount=type=cache,target=/root/.cache/git-src \
     if [ ! -d /root/.cache/git-src/xpu-perf/.git ]; then \
         git clone https://github.com/abenmao/xpu-perf.git /root/.cache/git-src/xpu-perf; \
@@ -90,26 +112,5 @@ RUN --mount=type=cache,target=/root/.cache/git-src \
     cd /workspace && \
     cp -a /root/.cache/git-src/xpu-perf . && \
     pip install --ignore-installed blinker -r xpu-perf/micro_perf/requirements.txt
-
-# RUN --mount=type=cache,target=/root/.cache/ccache \
-#     --mount=type=cache,target=/root/.cache/git-src \
-#     source /opt/intel/oneapi/setvars.sh --force && \
-#     source /opt/intel/oneapi/ccl/latest/env/vars.sh --force && \
-#     if [ ! -d /root/.cache/git-src/intel-extension-for-pytorch/.git ]; then \
-#         git clone https://github.com/abenmao/intel-extension-for-pytorch /root/.cache/git-src/intel-extension-for-pytorch; \
-#     fi && \
-#     cd /root/.cache/git-src/intel-extension-for-pytorch && \
-#     git fetch --all && \
-#     git checkout quant_matmul && \
-#     git submodule sync && \
-#     git submodule update --init --recursive && \
-#     cd /workspace && \
-#     cp -a /root/.cache/git-src/intel-extension-for-pytorch . && \
-#     cd intel-extension-for-pytorch && \
-#     MAX_JOBS=64 \
-#     TORCH_XPU_ARCH_LIST="bmg" \
-#     pip install -v . --no-build-isolation
-
-
   
 
