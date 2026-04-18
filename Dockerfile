@@ -57,7 +57,7 @@ RUN --mount=type=cache,target=/root/.cache/ccache \
     cp -a /root/.cache/git-src/auto-round . && \
     cd auto-round/auto_round_extension/ark && \
     ONEAPI_VERSION=$(readlink /opt/intel/oneapi/compiler/latest) \
-    pip install -e . && \
+    pip install --no-build-isolation -e . && \
     cp build/auto_round_kernel_cpu.cpython-312-x86_64-linux-gnu.so ./auto_round_kernel/ && \
     cp xbuild/auto_round_kernel_xpu.cpython-312-x86_64-linux-gnu.so ./auto_round_kernel/
 

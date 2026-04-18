@@ -112,6 +112,7 @@ OP_CONFIG = {
     # sage_attention
     "sage_attention_page":         {"x_fields": ["q_head_num", "k_seq_len"], "filters": ["arg_type", "provider", "dtype", "mode", "kv_head_num", "head_dim", "batch_size", "block_size"]},
     "sage_attention_decode_page":  {"x_fields": ["q_head_num", "k_seq_len"], "filters": ["arg_type", "provider", "dtype", "mode", "kv_head_num", "head_dim", "batch_size", "block_size"]},
+    "sage_attention_v1":           {"x_fields": ["q_head_num", "k_seq_len"], "filters": ["arg_type", "provider", "dtype", "mode", "kv_head_num", "head_dim", "batch_size", "block_size"]},
 }
 
 OP_ORDER = [
@@ -127,7 +128,7 @@ OP_ORDER = [
     "reduce_max", "reduce_min", "reduce_sum", "topk",
     "cos", "div", "exp", "log", "sin", "sqrt",
     "all_reduce", "all_gather", "reduce_scatter", "all_to_all", "device2device", "device2host", "host2device",
-    "sage_attention_page", "sage_attention_decode_page",
+    "sage_attention_page", "sage_attention_decode_page", "sage_attention_v1",
 ]
 
 # Hardware specs for utilization calculation
@@ -275,7 +276,7 @@ def gen_op_section(op_name, rows):
         row["MBU(%)"] = round(float(mem_bw) / HW_MEM_BW_GBs * 100, 2) if HW_MEM_BW_GBs else 0
         # MFU = calc_flops_power / peak_tflops * 100 (peak depends on dtype)
         flops = row.get("calc_flops_power(tflops)", 0) or 0
-        if op_name in ("sage_attention_page", "sage_attention_decode_page"):
+        if op_name in ("sage_attention_page", "sage_attention_decode_page", "sage_attention_v1"):
             peak = HW_PEAK_TFLOPS_INT8
         else:
             dtype = str(row.get("dtype", "")).lower()

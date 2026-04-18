@@ -115,6 +115,7 @@ OP_GROUPS = [
         [
             "sage_attention_page",
             "sage_attention_decode_page",
+            "sage_attention_v1",
         ],
     ),
 ]
@@ -189,7 +190,7 @@ def normalize_scalar(value):
     return ("{:.12g}".format(number)).lower()
 
 
-SAGE_ATTENTION_OPS = {"sage_attention_page", "sage_attention_decode_page"}
+SAGE_ATTENTION_OPS = {"sage_attention_page", "sage_attention_decode_page", "sage_attention_v1"}
 
 
 def compute_mfu(row):
