@@ -1,7 +1,7 @@
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 DEVICE=0,1,2,3,4,5,6,7
 CCL_DEVICE=4,5
-REPORT_DIR="${1:-${SCRIPT_DIR}/reports/reports_$(TZ='Asia/Shanghai' date +%Y-%m-%d-%H-%M-%S)}"
+REPORT_DIR="$(realpath -m "${1:-${SCRIPT_DIR}/reports/reports_$(TZ='Asia/Shanghai' date +%Y-%m-%d-%H-%M-%S)}")"
 
 export RenderCompressedBuffersEnabled=0 
 export NEOReadDebugKeys=1

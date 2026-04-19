@@ -121,8 +121,8 @@ _SKU_PEAK_SPECS = {
     "RTX 5090": {
         "bw_gbs": 1792.0,
         "fp32": 104.8,
-        "low": 209.6,    # bf16 / fp16 (tensor cores, no sparsity)
-        "int8": 419.2,   # INT8 (tensor cores, no sparsity)
+        "low": 209.6,    # bf16 / fp16 (2x fp32)
+        "int8": 419.2,   # INT8 (4x fp32)
     },
     "RTX PRO 5000": {
         "bw_gbs": 1344.0,
