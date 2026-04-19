@@ -1,7 +1,7 @@
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 DEVICE=0,1,2,3,4,5,6,7
 CCL_DEVICE=4,5
-REPORT_DIR="${SCRIPT_DIR}/reports/reports_$(TZ='Asia/Shanghai' date +%Y-%m-%d-%H-%M-%S)"
+REPORT_DIR="${1:-${SCRIPT_DIR}/reports/reports_$(TZ='Asia/Shanghai' date +%Y-%m-%d-%H-%M-%S)}"
 
 export RenderCompressedBuffersEnabled=0 
 export NEOReadDebugKeys=1
@@ -14,6 +14,10 @@ cd "$XPU_PERF_DIR"
 git checkout -- .
 git clean -fd
 git pull --ff-only || { echo "[ERROR] Failed to pull latest xpu-perf code."; exit 1; }
+
+# Comment out ipex rms_norm provider to avoid work-group size RuntimeError
+sed -i 's/@ProviderRegistry.register_vendor_impl("rms_norm", "ipex")/#@ProviderRegistry.register_vendor_impl("rms_norm", "ipex")/' \
+    "${XPU_PERF_DIR}/micro_perf/backends/INTEL/ops/ipex/rms_norm.py"
 
 ADJUST_SCRIPT="${XPU_PERF_DIR}/micro_perf/backends/INTEL/ops/xccl/adjust_batch_size.sh"
 bash "$ADJUST_SCRIPT" b60
@@ -28,12 +32,20 @@ cd "${XPU_PERF_DIR}/micro_perf"
 
 run_test() {
     op_name=$1
+    if ls -d "$REPORT_DIR"/INTEL/*/$op_name &>/dev/null; then
+        echo "[SKIP] $op_name: result already exists"
+        return
+    fi
     python launch.py --task_dir workloads --device $DEVICE --backend INTEL --task $op_name --report_dir $REPORT_DIR &> $REPORT_DIR/$op_name.txt
     sleep 10
 }
 
 run_ccl_test() {
     op_name=$1
+    if ls -d "$REPORT_DIR"/INTEL/*/$op_name &>/dev/null; then
+        echo "[SKIP] $op_name: result already exists"
+        return
+    fi
     python launch.py --task_dir workloads --device $CCL_DEVICE --backend INTEL --task $op_name --report_dir $REPORT_DIR &> $REPORT_DIR/$op_name.txt
     sleep 30
 }
