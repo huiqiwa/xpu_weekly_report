@@ -21,7 +21,7 @@ def add_excel_table(worksheet, start_row, num_rows, num_cols, table_name_prefix=
     _table_counter += 1
     end_col_letter = get_column_letter(num_cols)
     ref = f"A{start_row + 1}:{end_col_letter}{start_row + 1 + num_rows}"
-    table_name = f"{table_name_prefix}_{_table_counter}"
+    table_name = re.sub(r"[^A-Za-z0-9_.]", "_", f"{table_name_prefix}_{_table_counter}")
     table = Table(displayName=table_name, ref=ref)
     style = TableStyleInfo(
         name="TableStyleMedium2", showFirstColumn=False,
