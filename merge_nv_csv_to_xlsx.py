@@ -116,11 +116,42 @@ OP_CATEGORY_MAP = {
 }
 OP_ORDER_MAP = {op_name: index for index, op_name in enumerate(ORDERED_OPS)}
 
-# NVIDIA GeForce RTX 5090 D peak specs
+# Per-SKU peak specs: {sku_substring: {bw, fp32, low, int8}}
+_SKU_PEAK_SPECS = {
+    "RTX 5090": {
+        "bw_gbs": 1792.0,
+        "fp32": 104.8,
+        "low": 209.6,    # bf16 / fp16 (tensor cores, no sparsity)
+        "int8": 419.2,   # INT8 (tensor cores, no sparsity)
+    },
+    "RTX PRO 5000": {
+        "bw_gbs": 1344.0,
+        "fp32": 65.0,
+        "low": 258.0,    # bf16 / fp16 (tensor cores, no sparsity)
+        "int8": 516.0,   # INT8 (tensor cores, no sparsity)
+    },
+}
+
+# Resolved at runtime after sku_name is known; defaults to RTX 5090
 PEAK_BW_GBS = 1792.0
 PEAK_TFLOPS_FP32 = 104.8
-PEAK_TFLOPS_LOW = 209.6   # bf16 / fp16 (tensor cores, no sparsity)
-PEAK_TFLOPS_INT8 = 419.2  # INT8 (tensor cores, no sparsity)
+PEAK_TFLOPS_LOW = 209.6
+PEAK_TFLOPS_INT8 = 419.2
+
+
+def _apply_sku_specs(sku_name):
+    """Set module-level peak specs based on the detected SKU name."""
+    global PEAK_BW_GBS, PEAK_TFLOPS_FP32, PEAK_TFLOPS_LOW, PEAK_TFLOPS_INT8
+    for substring, specs in _SKU_PEAK_SPECS.items():
+        if substring in sku_name:
+            PEAK_BW_GBS = specs["bw_gbs"]
+            PEAK_TFLOPS_FP32 = specs["fp32"]
+            PEAK_TFLOPS_LOW = specs["low"]
+            PEAK_TFLOPS_INT8 = specs["int8"]
+            print(f"  SKU matched: {substring} -> BW={PEAK_BW_GBS} GB/s, FP32={PEAK_TFLOPS_FP32}, BF16/FP16={PEAK_TFLOPS_LOW}, INT8={PEAK_TFLOPS_INT8}")
+            return
+    print(f"  WARNING: No peak specs found for SKU '{sku_name}', using defaults (RTX 5090)")
+
 
 METRIC_COLUMNS = {
     "sku_name",
@@ -647,6 +678,7 @@ def main():
     os.makedirs(nv_reports_dir, exist_ok=True)
     report_csv_base = resolve_report_csv_base(base_dir)
     sku_name = os.path.basename(report_csv_base)
+    _apply_sku_specs(sku_name)
     # Derive architecture prefix from sku_name, e.g. "NVIDIA GeForce RTX 5090 D" -> "nvidia_geforce_rtx_5090_d_"
     arch_prefix = re.sub(r"\s+", "_", sku_name.strip()).lower() + "_" if sku_name.strip() else ""
     output_file = os.path.join(nv_reports_dir, arch_prefix + os.path.basename(base_dir) + ".xlsx")
