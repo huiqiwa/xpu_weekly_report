@@ -13,8 +13,9 @@ M=${2:-4096}
 K=${3:-8192}
 N=${4:-8192}
 DTYPE=${5:-bfloat16}
-ITERS=${6:-200}
-WARMUP=50
+ITERS=${6:-3000}
+WARMUP=500
+SAMPLE_MS=200  # GPU frequency sampling interval in ms
 
 echo "============================================"
 echo " GEMM Benchmark with GPU Frequency Monitor"
@@ -23,37 +24,35 @@ echo " GPU:    $GPU_ID"
 echo " Shape:  M=$M, K=$K, N=$N"
 echo " Dtype:  $DTYPE"
 echo " Iters:  $ITERS (warmup: $WARMUP)"
+echo " Sample: every ${SAMPLE_MS}ms"
 echo "============================================"
 
-# Frequency log file
-FREQ_LOG="/tmp/gpu_freq_monitor_${GPU_ID}_$(date +%Y%m%d_%H%M%S).csv"
+# Temp file to collect SM clocks for summary (only clocks during load)
+FREQ_TMP=$(mktemp /tmp/gpu_freq_XXXXXX)
+# Marker file: benchmark sets this when compute starts
+BENCH_RUNNING="/tmp/gpu_bench_running_$$"
 
-# Start GPU frequency monitor in background
-echo "timestamp,sm_clk_mhz,mem_clk_mhz,gpu_util,mem_util,power_w,temp_c" > "$FREQ_LOG"
-nvidia-smi dmon -i "$GPU_ID" -s cput -d 1 2>/dev/null | \
-    awk -v logfile="$FREQ_LOG" '
-    BEGIN { OFS="," }
-    /^#/ { next }
-    NF >= 7 {
-        # dmon -s cput columns: idx mclk pclk pwr gtemp mtemp sm mem enc dec jpg ofa rxpci txpci
-        sm_clk = $3    # pclk (SM/processor clock)
-        mem_clk = $2   # mclk (memory clock)
-        pwr = $4
-        temp = $5
-        sm_util = $7
-        mem_util = $8
-        cmd = "date +%H:%M:%S"
-        cmd | getline ts
-        close(cmd)
-        printf "%s,%s,%s,%s,%s,%s,%s\n", ts, sm_clk, mem_clk, sm_util, mem_util, pwr, temp >> logfile
-        fflush(logfile)
-        printf "\r  [Monitor] SM: %s MHz | Mem: %s MHz | Util: %s%% | Power: %sW | Temp: %s°C  ", sm_clk, mem_clk, sm_util, pwr, temp
-    }
-    ' &
+# Start GPU frequency monitor in background (200ms sampling via nvidia-smi query loop)
+(
+    while true; do
+        line=$(nvidia-smi --query-gpu=clocks.current.graphics,clocks.current.memory,utilization.gpu,utilization.memory,power.draw,temperature.gpu \
+            --format=csv,noheader,nounits -i "$GPU_ID" 2>/dev/null)
+        [ -z "$line" ] && continue
+        IFS=', ' read -r sm_clk mem_clk gpu_util mem_util pwr temp <<< "$line"
+        ts=$(date +%H:%M:%S.%N | cut -c1-12)
+        # Only record frequency samples when benchmark is running
+        if [ -f "$BENCH_RUNNING" ] && [ "$gpu_util" -gt 0 ] 2>/dev/null; then
+            echo "$sm_clk" >> "$FREQ_TMP"
+        fi
+        printf "\r  [Monitor] %s | SM: %s MHz | Mem: %s MHz | Util: %s%% | Power: %sW | Temp: %s°C  " \
+            "$ts" "$sm_clk" "$mem_clk" "$gpu_util" "$pwr" "$temp"
+        sleep "0.$(printf '%03d' $SAMPLE_MS)"
+    done
+) &
 MONITOR_PID=$!
 
 # Give monitor a moment to start
-sleep 1
+sleep 0.5
 
 # Run GEMM benchmark
 echo ""
@@ -64,12 +63,14 @@ python3 -c "
 import torch
 import time
 import sys
+import os
 
 gpu_id = int(sys.argv[1])
 M, K, N = int(sys.argv[2]), int(sys.argv[3]), int(sys.argv[4])
 dtype_str = sys.argv[5]
 iters = int(sys.argv[6])
 warmup = int(sys.argv[7])
+marker = sys.argv[8]
 
 dtype_map = {
     'float16': torch.float16,
@@ -97,6 +98,9 @@ for _ in range(warmup):
     c = torch.matmul(a, b)
 torch.cuda.synchronize(device)
 
+# Signal monitor: benchmark compute starts now
+open(marker, 'w').close()
+
 # Benchmark
 print(f'Benchmarking ({iters} iters)...')
 torch.cuda.synchronize(device)
@@ -104,7 +108,6 @@ torch.cuda.synchronize(device)
 start_event = torch.cuda.Event(enable_timing=True)
 end_event = torch.cuda.Event(enable_timing=True)
 
-latencies = []
 start_event.record()
 for i in range(iters):
     c = torch.matmul(a, b)
@@ -129,6 +132,12 @@ for i in range(min(iters, 50)):
     torch.cuda.synchronize(device)
     per_iter_events.append(s.elapsed_time(e))
 
+# Remove marker
+try:
+    os.remove(marker)
+except OSError:
+    pass
+
 min_ms = min(per_iter_events)
 max_ms = max(per_iter_events)
 peak_tflops = flops_per_op / (min_ms / 1000.0) / 1e12
@@ -146,7 +155,6 @@ print(f'  FLOPS/op:     {flops_per_op:.2e}')
 print('=' * 50)
 
 # Theoretical peak (5090D: 680 TC * freq * 128 OPs)
-# We'll print a reference
 print()
 print('  Reference (5090D BF16 theoretical peak):')
 print('    @ 2.407 GHz (boost):  209.5 TFLOPS')
@@ -154,31 +162,38 @@ print('    @ 3.090 GHz (max):    268.6 TFLOPS')
 print(f'  Efficiency vs boost:    {tflops/209.5*100:.1f}%')
 print(f'  Efficiency vs max clk:  {tflops/268.6*100:.1f}%')
 print()
-" "$GPU_ID" "$M" "$K" "$N" "$DTYPE" "$ITERS" "$WARMUP"
+" "$GPU_ID" "$M" "$K" "$N" "$DTYPE" "$ITERS" "$WARMUP" "$BENCH_RUNNING"
 
 # Stop monitor
 kill $MONITOR_PID 2>/dev/null
 wait $MONITOR_PID 2>/dev/null
-sleep 0.5
+sleep 0.3
 
-# Clear the monitor's \r line remnant, then print log path
+# Clear the monitor's \r line remnant
 echo ""
 echo ""
-echo ">>> Frequency log saved to: $FREQ_LOG"
 
-# Print frequency summary
-echo ""
-echo "=== GPU Frequency Summary ==="
-if [ -f "$FREQ_LOG" ]; then
-    awk -F',' 'NR>1 && $2+0 > 0 {
-        sum+=$2; count++
-        if($2+0 > max) max=$2+0
-        if(min==0 || $2+0 < min) min=$2+0
-    } END {
-        if(count>0) {
-            printf "  SM Clock:  avg=%.0f MHz, min=%d MHz, max=%d MHz (%d samples)\n", sum/count, min, max, count
-            printf "  Estimated peak @ avg freq: %.1f TFLOPS\n", 680 * (sum/count/1000) * 128 / 1000
-        }
-    }' "$FREQ_LOG"
+# Print frequency summary (only samples collected during benchmark)
+echo "=== GPU Frequency Summary (during benchmark) ==="
+if [ -f "$FREQ_TMP" ] && [ -s "$FREQ_TMP" ]; then
+    sm_sum=0; sm_count=0; sm_min=999999; sm_max=0
+    while read -r val; do
+        [ "$val" -gt 0 ] 2>/dev/null || continue
+        sm_sum=$((sm_sum + val))
+        sm_count=$((sm_count + 1))
+        [ "$val" -lt "$sm_min" ] && sm_min=$val
+        [ "$val" -gt "$sm_max" ] && sm_max=$val
+    done < "$FREQ_TMP"
+    if [ "$sm_count" -gt 0 ]; then
+        sm_avg=$((sm_sum / sm_count))
+        echo "  SM Clock:  avg=${sm_avg} MHz, min=${sm_min} MHz, max=${sm_max} MHz (${sm_count} samples)"
+        # Estimated theoretical peak at measured avg frequency
+        # 5090D: 680 TCs * 128 OPs/TC = 87040 OPs/cycle, peak = 87040 * freq
+        est_peak=$(echo "$sm_avg" | awk '{printf "%.1f", 680 * ($1/1000) * 128 / 1000}')
+        echo "  Estimated peak @ avg freq: ${est_peak} TFLOPS"
+    fi
+else
+    echo "  No frequency data collected (benchmark may have been too short)"
 fi
+rm -f "$FREQ_TMP" "$BENCH_RUNNING"
 echo "============================================"
