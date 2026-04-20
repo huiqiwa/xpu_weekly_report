@@ -24,6 +24,9 @@ bash "$ADJUST_SCRIPT" b60
 
 mkdir -p "$REPORT_DIR"
 
+# Build sycl-tla if needed
+bash "${SCRIPT_DIR}/build_sycl_tla.sh"
+
 cd "${XPU_PERF_DIR}/micro_perf"
 
 # python launch.py --task_dir workloads/basic --device 0,1,2,3 --backend INTEL --task all --report_dir all_reports  &> /yupengzh/xpu-perf-logs/basic.txt

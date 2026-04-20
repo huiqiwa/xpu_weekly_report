@@ -19,6 +19,7 @@ services:
       - /mnt:/mnt
       - /dev/dri:/dev/dri
       - .:/workspace/xpu_weekly_report
+      - ${HOME}/.cache/ccache:/root/.cache/ccache
     devices:
       - /dev/dri:/dev/dri
     network_mode: host
