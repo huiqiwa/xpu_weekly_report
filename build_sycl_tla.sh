@@ -12,6 +12,12 @@ NEW_HEAD=$(git rev-parse HEAD)
 
 if [[ "$OLD_HEAD" != "$NEW_HEAD" || ! -d "$BUILD_DIR" ]]; then
   echo "Code updated ($OLD_HEAD -> $NEW_HEAD) or build dir missing, rebuilding..."
+  
+  export SYCL_PROGRAM_COMPILE_OPTIONS="-ze-opt-large-register-file" 
+  export IGC_VISAOptions="-perfmodel"
+  export IGC_VectorAliasBBThreshold=10000
+  export IGC_ExtraOCLOptions="-cl-intel-256-GRF-per-thread"
+
   rm -rf "$BUILD_DIR"
   mkdir -p "$BUILD_DIR"
   cd "$BUILD_DIR"

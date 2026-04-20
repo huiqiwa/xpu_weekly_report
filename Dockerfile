@@ -41,7 +41,7 @@ RUN --mount=type=cache,target=/root/.cache/ccache \
     MAX_JOBS=64 \
     VLLM_XPU_AOT_DEVICES="bmg" \
     VLLM_XPU_XE2_AOT_DEVICES="bmg" \
-    pip install --no-build-isolation -v -e .
+    pip install --no-build-isolation -v .
 
 RUN --mount=type=cache,target=/root/.cache/ccache \
     --mount=type=cache,target=/root/.cache/git-src \

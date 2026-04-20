@@ -1,5 +1,5 @@
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-DEVICE=0,1,2,3,4,5,6,7
+DEVICE=1
 CCL_DEVICE=4,5
 REPORT_DIR="$(realpath -m "${1:-${SCRIPT_DIR}/reports/reports_$(TZ='Asia/Shanghai' date +%Y-%m-%d-%H-%M-%S)}")"
 
@@ -18,6 +18,8 @@ git pull --ff-only || { echo "[ERROR] Failed to pull latest xpu-perf code."; exi
 # Comment out ipex rms_norm provider to avoid work-group size RuntimeError
 sed -i 's/@ProviderRegistry.register_vendor_impl("rms_norm", "ipex")/#@ProviderRegistry.register_vendor_impl("rms_norm", "ipex")/' \
     "${XPU_PERF_DIR}/micro_perf/backends/INTEL/ops/ipex/rms_norm.py"
+
+bash "${SCRIPT_DIR}/build_sycl_ext.sh"
 
 ADJUST_SCRIPT="${XPU_PERF_DIR}/micro_perf/backends/INTEL/ops/xccl/adjust_batch_size.sh"
 bash "$ADJUST_SCRIPT" b60
