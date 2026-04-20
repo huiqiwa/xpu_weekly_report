@@ -120,9 +120,9 @@ OP_ORDER_MAP = {op_name: index for index, op_name in enumerate(ORDERED_OPS)}
 _SKU_PEAK_SPECS = {
     "RTX 5090": {
         "bw_gbs": 1792.0,
-        "fp32": 104.8,
-        "low": 209.6,    # bf16 / fp16 (2x fp32)
-        "int8": 419.2,   # INT8 (4x fp32)
+        "fp32": 126.6432,
+        "low": 253.2864,    # bf16 / fp16
+        "int8": 506.5728,   # INT8
     },
     "RTX PRO 5000": {
         "bw_gbs": 1344.0,
@@ -133,10 +133,11 @@ _SKU_PEAK_SPECS = {
 }
 
 # Resolved at runtime after sku_name is known; defaults to RTX 5090
-PEAK_BW_GBS = 1792.0
-PEAK_TFLOPS_FP32 = 104.8
-PEAK_TFLOPS_LOW = 209.6
-PEAK_TFLOPS_INT8 = 419.2
+_default_specs = _SKU_PEAK_SPECS["RTX 5090"]
+PEAK_BW_GBS = _default_specs["bw_gbs"]
+PEAK_TFLOPS_FP32 = _default_specs["fp32"]
+PEAK_TFLOPS_LOW = _default_specs["low"]
+PEAK_TFLOPS_INT8 = _default_specs["int8"]
 
 
 def _apply_sku_specs(sku_name):
