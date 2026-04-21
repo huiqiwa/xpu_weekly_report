@@ -118,11 +118,17 @@ OP_ORDER_MAP = {op_name: index for index, op_name in enumerate(ORDERED_OPS)}
 
 # Per-SKU peak specs: {sku_substring: {bw, fp32, low, int8}}
 _SKU_PEAK_SPECS = {
+    "RTX 5090 D": {
+        "bw_gbs": 1792.0,
+        "fp32": 123.03104,
+        "low": 246.06208,    # bf16 / fp16
+        "int8": 492.12416,   # INT8
+    },
     "RTX 5090": {
         "bw_gbs": 1792.0,
-        "fp32": 126.6432,
-        "low": 253.2864,    # bf16 / fp16
-        "int8": 506.5728,   # INT8
+        "fp32": 106.05824,
+        "low": 212.11648,    # bf16 / fp16
+        "int8": 424.23296,   # INT8
     },
     "RTX PRO 5000": {
         "bw_gbs": 1344.0,
