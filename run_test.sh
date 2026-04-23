@@ -9,20 +9,8 @@ export CCL_SYCL_CCL_BARRIER=1
 
 XPU_PERF_DIR="${SCRIPT_DIR}/../xpu-perf"
 
-# Ensure xpu-perf repo is clean and up-to-date
-cd "$XPU_PERF_DIR"
-git checkout -- .
-git clean -fd
-git pull --ff-only || { echo "[ERROR] Failed to pull latest xpu-perf code."; exit 1; }
-
-# Comment out ipex rms_norm provider to avoid work-group size RuntimeError
-sed -i 's/@ProviderRegistry.register_vendor_impl("rms_norm", "ipex")/#@ProviderRegistry.register_vendor_impl("rms_norm", "ipex")/' \
-    "${XPU_PERF_DIR}/micro_perf/backends/INTEL/ops/ipex/rms_norm.py"
-
-bash "${SCRIPT_DIR}/build_sycl_ext.sh"
-
-ADJUST_SCRIPT="${XPU_PERF_DIR}/micro_perf/backends/INTEL/ops/xccl/adjust_batch_size.sh"
-bash "$ADJUST_SCRIPT" b60
+# Prepare xpu-perf: clean, update, patch, build extensions
+bash "${SCRIPT_DIR}/prepare_xpu_perf.sh"
 
 mkdir -p "$REPORT_DIR"
 

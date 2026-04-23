@@ -2,8 +2,14 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SYCL_TLA_DIR="$(cd "$SCRIPT_DIR/../sycl-tla" && pwd)"
+WORKSPACE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+SYCL_TLA_DIR="$WORKSPACE_DIR/sycl-tla"
 BUILD_DIR="$SYCL_TLA_DIR/build"
+
+if [ ! -d "$SYCL_TLA_DIR/.git" ]; then
+  echo "Source not found, cloning..."
+  git clone https://github.com/intel/sycl-tla.git "$SYCL_TLA_DIR"
+fi
 
 cd "$SYCL_TLA_DIR"
 OLD_HEAD=$(git rev-parse HEAD)

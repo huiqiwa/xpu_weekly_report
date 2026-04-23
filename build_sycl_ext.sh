@@ -4,11 +4,14 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SYCL_EXT_DIR="$SCRIPT_DIR/../xpu-perf/micro_perf/backends/INTEL/ops/sycl_ext"
 
-# Check if rebuild is needed: .so missing or source files newer than .so
+source "$SCRIPT_DIR/activate_env.sh"
+
+# Check if rebuild is needed: no .so files or any .cpp newer than oldest .so
 NEED_BUILD=0
-if [[ ! -f "$SYCL_EXT_DIR/store_kv_cache_sycl.so" || ! -f "$SYCL_EXT_DIR/dequant_kv_cache_sycl.so" ]]; then
+OLDEST_SO=$(find "$SYCL_EXT_DIR" -maxdepth 1 -name '*.so' -printf '%T@ %p\n' 2>/dev/null | sort -n | head -1 | cut -d' ' -f2)
+if [[ -z "$OLDEST_SO" ]]; then
   NEED_BUILD=1
-elif [[ -n $(find "$SYCL_EXT_DIR" -name '*.cpp' -newer "$SYCL_EXT_DIR/store_kv_cache_sycl.so" 2>/dev/null) ]]; then
+elif [[ -n $(find "$SYCL_EXT_DIR" -maxdepth 1 -name '*.cpp' -newer "$OLDEST_SO" 2>/dev/null) ]]; then
   NEED_BUILD=1
 fi
 
@@ -17,18 +20,8 @@ if [[ "$NEED_BUILD" -eq 0 ]]; then
   exit 0
 fi
 
-# Get torch compile paths (must run BEFORE sourcing oneAPI)
-export TORCH_INCLUDES=$(python3 -c "
-import torch.utils.cpp_extension as ext
-for p in ext.include_paths():
-    print(f'-I{p}', end=' ')
-")
-export TORCH_LIBS=$(python3 -c "
-import torch.utils.cpp_extension as ext
-for p in ext.library_paths():
-    print(f'-L{p}', end=' ')
-")
-
-# Build
+# Patch build.sh to use ccache, build, then restore
 cd "$SYCL_EXT_DIR"
+sed -i 's/^icpx /ccache icpx /' build.sh
 bash build.sh
+sed -i 's/^ccache icpx /icpx /' build.sh
