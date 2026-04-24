@@ -28,6 +28,8 @@ if [[ "$OLD_HEAD" != "$NEW_HEAD" || ! -d "$BUILD_DIR" ]]; then
   mkdir -p "$BUILD_DIR"
   cd "$BUILD_DIR"
 
+  export CCACHE_BASEDIR="$SYCL_TLA_DIR"
+
   cmake .. \
     -G Ninja \
     -DCUTLASS_ENABLE_SYCL=ON \

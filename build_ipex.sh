@@ -32,8 +32,13 @@ git submodule sync
 git submodule update --init --recursive
 NEW_HEAD=$(git rev-parse HEAD)
 
-if [[ "$OLD_HEAD" != "$NEW_HEAD" || ! -d "$IPEX_DIR/build" ]]; then
-  echo "Code updated ($OLD_HEAD -> $NEW_HEAD) or build dir missing, rebuilding..."
+if [[ "$OLD_HEAD" != "$NEW_HEAD" || ! -d "$IPEX_DIR/build" ]] || ! python -c "import intel_extension_for_pytorch" 2>/dev/null; then
+  echo "Code updated ($OLD_HEAD -> $NEW_HEAD) or build dir missing or IPEX not installed, rebuilding..."
+
+  # Clean stale CMake cache to avoid path mismatch (e.g. host vs container)
+  find "$IPEX_DIR/build" -name CMakeCache.txt -delete 2>/dev/null
+
+  export CCACHE_BASEDIR="$IPEX_DIR"
 
   pip install -r requirements.txt
 

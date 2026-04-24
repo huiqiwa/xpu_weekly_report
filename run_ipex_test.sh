@@ -9,17 +9,12 @@ export CCL_SYCL_CCL_BARRIER=1
 
 XPU_PERF_DIR="${SCRIPT_DIR}/../xpu-perf"
 
-source "$SCRIPT_DIR/activate_env.sh"
+source "$SCRIPT_DIR/activate_ipex_env.sh"
 
 # Prepare xpu-perf: clean, update, patch, build extensions
-bash "${SCRIPT_DIR}/prepare_xpu_perf.sh"
+bash "${SCRIPT_DIR}/prepare_xpu_perf.sh" ipex
 
 mkdir -p "$REPORT_DIR"
-
-# Build dependencies if needed
-bash "${SCRIPT_DIR}/build_sycl_tla.sh"
-bash "${SCRIPT_DIR}/build_vllm_xpu_kernels.sh"
-bash "${SCRIPT_DIR}/build_auto_round.sh"
 
 cd "${XPU_PERF_DIR}/micro_perf"
 
@@ -52,16 +47,12 @@ run_all() {
 # Norm & Quant
 run_test scale_dynamic_quant
 run_test head_rms_norm
-run_test head_rms_norm_dynamic_quant
 run_test add_rms_norm_dynamic_quant
+run_test rms_norm
 
-# Attention & rope & kvcache 
+# Attention & rope & kvcache
 run_test rotary_embedding
-run_test multimodal_rotary_embedding
 run_test store_kv_cache
-run_test dequant_kv_cache
-run_test flash_attention
-
 
 # gemm & group_gemm & moe_ops
 run_test moe_gating_gemm
@@ -70,63 +61,11 @@ run_test moe_quant_group_gemm
 run_test moe_softmax_topk
 run_test moe_scatter_dynamic_quant
 run_test moe_swiglu_dynamic_quant
-run_test swiglu_dynamic_quant
 run_test moe_gather
-
-# tensor_gemm_ops
-run_test gemm
-
-# vector_activation_ops
-run_test gelu
-run_test silu
-
-# vector_index_ops
-run_test embedding
-run_test gather
-run_test index_add
-run_test index_select
-run_test scatter
-
-# vector_linear_ops
-run_test add
-run_test cast
-run_test mul
-run_test sub
-
-# vector_norm_ops
-run_test layer_norm
-run_test rms_norm
-run_test softmax
-
-# vector_reduction_ops
-run_test reduce_max
-run_test reduce_min
-run_test reduce_sum
-run_test topk
-
-# vector_sfu_ops
-run_test cos
-run_test div
-run_test exp
-run_test log
-run_test sin
-run_test sqrt
 
 # sage_attention
 run_test sage_attention_page
 run_test sage_attention_decode_page
-run_test sage_attention_v1
-
-# xccl ops
-sleep 30
-run_ccl_test all_reduce
-run_ccl_test all_gather
-run_ccl_test reduce_scatter
-run_test device2device
-sleep 30
-run_ccl_test device2host
-run_ccl_test host2device
-run_ccl_test all_to_all
 
 }
 

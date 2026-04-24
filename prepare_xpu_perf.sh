@@ -4,8 +4,13 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 XPU_PERF_DIR="$WORKSPACE_DIR/xpu-perf"
+CONDA_ENV="${1:-xpu-perf-test}"
 
-source "$SCRIPT_DIR/activate_env.sh"
+if [[ "$CONDA_ENV" == "ipex" ]]; then
+  source "$SCRIPT_DIR/activate_ipex_env.sh"
+else
+  source "$SCRIPT_DIR/activate_env.sh"
+fi
 
 if [ ! -d "$XPU_PERF_DIR/.git" ]; then
   git clone https://github.com/abenmao/xpu-perf.git "$XPU_PERF_DIR"
@@ -14,10 +19,17 @@ cd "$XPU_PERF_DIR"
 git checkout -- .
 git clean -fd
 git fetch --all
+OLD_HEAD=$(git rev-parse HEAD)
 git checkout intel_gpu_backend
 git pull
+NEW_HEAD=$(git rev-parse HEAD)
 
-pip install --ignore-installed blinker -r "$XPU_PERF_DIR/micro_perf/requirements.txt"
+if [[ "$OLD_HEAD" != "$NEW_HEAD" ]]; then
+  echo "Code updated ($OLD_HEAD -> $NEW_HEAD), installing requirements..."
+  pip install --ignore-installed blinker -r "$XPU_PERF_DIR/micro_perf/requirements.txt"
+else
+  echo "Code is up to date, skipping pip install."
+fi
 
 # Comment out ipex rms_norm provider to avoid work-group size RuntimeError
 sed -i 's/@ProviderRegistry.register_vendor_impl("rms_norm", "ipex")/#@ProviderRegistry.register_vendor_impl("rms_norm", "ipex")/' \

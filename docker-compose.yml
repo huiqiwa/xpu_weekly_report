@@ -14,11 +14,13 @@ services:
       - HTTPS_PROXY=http://proxy-ir.intel.com:912
       - NO_PROXY=localhost,127.0.0.1
       - TZ=Asia/Shanghai
+      - CCACHE_NOHASHDIR=1
+      - CCACHE_COMPILERCHECK=content
     command: /bin/bash
     volumes:
       - /mnt:/mnt
       - /dev/dri:/dev/dri
-      - .:/workspace/xpu_weekly_report
+      - ..:/workspace
       - ${HOME}/.cache/ccache:/root/.cache/ccache
     devices:
       - /dev/dri:/dev/dri

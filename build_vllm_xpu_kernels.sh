@@ -24,6 +24,8 @@ if [[ "$OLD_HEAD" != "$NEW_HEAD" || ! -d "$VLLM_XPU_KERNELS_DIR/build" ]]; then
   sed -i '/^torch==/d' requirements.txt
   pip install -r requirements.txt
 
+  export CCACHE_BASEDIR="$VLLM_XPU_KERNELS_DIR"
+
   CMAKE_C_COMPILER_LAUNCHER=ccache \
   CMAKE_CXX_COMPILER_LAUNCHER=ccache \
   MAX_JOBS=16 \
