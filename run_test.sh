@@ -1,5 +1,5 @@
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-DEVICE=0
+DEVICE=0,1
 CCL_DEVICE=0,1
 REPORT_DIR="$(realpath -m "${1:-${SCRIPT_DIR}/reports/reports_$(TZ='Asia/Shanghai' date +%Y-%m-%d-%H-%M-%S)}")"
 

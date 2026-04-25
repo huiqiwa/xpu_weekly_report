@@ -19,7 +19,7 @@ git fetch --all
 git checkout main && git pull
 NEW_HEAD=$(git rev-parse HEAD)
 
-if [[ "$OLD_HEAD" != "$NEW_HEAD" || ! -d "$VLLM_XPU_KERNELS_DIR/build" ]]; then
+if [[ "$OLD_HEAD" != "$NEW_HEAD" ]] || ! python -c "import os; os.chdir('/tmp'); import vllm_xpu_kernels" 2>/dev/null; then
   echo "Code updated ($OLD_HEAD -> $NEW_HEAD) or build dir missing, rebuilding..."
 
   sed -i '/^torch==/d' requirements.txt
@@ -31,7 +31,7 @@ if [[ "$OLD_HEAD" != "$NEW_HEAD" || ! -d "$VLLM_XPU_KERNELS_DIR/build" ]]; then
 
   CMAKE_C_COMPILER_LAUNCHER=ccache \
   CMAKE_CXX_COMPILER_LAUNCHER=ccache \
-  MAX_JOBS=64 \
+  MAX_JOBS=16 \
   VLLM_XPU_AOT_DEVICES="bmg" \
   VLLM_XPU_XE2_AOT_DEVICES="bmg" \
   pip install --no-build-isolation -v .

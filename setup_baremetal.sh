@@ -2,7 +2,9 @@ BANNER="============================================================"
 step_banner() { echo -e "\n$BANNER\n  [$1] $2\n$BANNER"; }
 
 step_banner "1/10" "Installing system packages"
-sudo apt update && sudo apt install -y --no-install-recommends ccache intel-ocloc 
+APT="apt"
+if [ "$(id -u)" -ne 0 ]; then APT="sudo apt"; fi
+$APT update && $APT install -y --no-install-recommends ccache intel-ocloc 
 
 set -e
 
