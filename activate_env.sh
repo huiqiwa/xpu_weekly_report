@@ -8,7 +8,7 @@ if ! command -v conda &>/dev/null; then
 fi
 
 CONDA_ENV="xpu-perf-test"
-if ! conda env list | grep -qw "$CONDA_ENV"; then
+if ! conda env list | grep -E "^${CONDA_ENV}\s" &>/dev/null; then
   echo "Creating conda environment '$CONDA_ENV'..."
   conda create -y -n "$CONDA_ENV" python=3.12
 fi

@@ -24,11 +24,13 @@ git checkout intel_gpu_backend
 git pull
 NEW_HEAD=$(git rev-parse HEAD)
 
-if [[ "$OLD_HEAD" != "$NEW_HEAD" ]]; then
-  echo "Code updated ($OLD_HEAD -> $NEW_HEAD), installing requirements..."
-  pip install --ignore-installed blinker -r "$XPU_PERF_DIR/micro_perf/requirements.txt"
+REQS_FILE="$XPU_PERF_DIR/micro_perf/requirements.txt"
+MISSING=$(pip install --dry-run -r "$REQS_FILE" 2>&1 | grep "^Would install" || true)
+if [[ "$OLD_HEAD" != "$NEW_HEAD" || -n "$MISSING" ]]; then
+  echo "Code updated or dependencies missing: $MISSING. Installing requirements..."
+  pip install --ignore-installed blinker -r "$REQS_FILE"
 else
-  echo "Code is up to date, skipping pip install."
+  echo "Code and dependencies are up to date, skipping pip install."
 fi
 
 # Comment out ipex rms_norm provider to avoid work-group size RuntimeError

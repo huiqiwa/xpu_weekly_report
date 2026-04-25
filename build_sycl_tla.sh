@@ -29,6 +29,8 @@ if [[ "$OLD_HEAD" != "$NEW_HEAD" || ! -d "$BUILD_DIR" ]]; then
   cd "$BUILD_DIR"
 
   export CCACHE_BASEDIR="$SYCL_TLA_DIR"
+  export CCACHE_NOHASHDIR=1
+  export CCACHE_COMPILERCHECK=content
 
   cmake .. \
     -G Ninja \

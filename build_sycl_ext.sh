@@ -21,6 +21,9 @@ if [[ "$NEED_BUILD" -eq 0 ]]; then
 fi
 
 # Patch build.sh to use ccache, build, then restore
+export CCACHE_BASEDIR="$SYCL_EXT_DIR"
+export CCACHE_NOHASHDIR=1
+export CCACHE_COMPILERCHECK=content
 cd "$SYCL_EXT_DIR"
 sed -i 's/^icpx /ccache icpx /' build.sh
 bash build.sh
