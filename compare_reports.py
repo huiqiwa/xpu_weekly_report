@@ -57,7 +57,8 @@ def compare(old_base, new_base, old_label, new_label):
         for op, prov in only_new:
             print(f"  {op}/{prov}")
 
-    print(f"\nRatio = new / old for tflops & bw.  >1 means new is better.  << = any tier deviates >5% from 1.0")
+    print(f"Ratio = new / old for tflops & bw.  >1 means new is better.")
+    print(f"Flags: ↑ = up >50%, ↓ = down >50%, ↕ = mixed")
     print(f"Tiers: cases sorted by new value, split into low/mid/high (each ~33%), showing median ratio")
     print(f"diff: +N = new has N extra cases, -N = old has N extra cases\n")
 
@@ -69,8 +70,8 @@ def compare(old_base, new_base, old_label, new_label):
         f"{'op':>30} {'provider':>25} | "
         f"{old_col:>{cw}} {new_col:>{cw}} "
         f"{'diff':>6} | "
-        f"{'tf_low':>7} {'tf_mid':>7} {'tf_high':>7} | "
-        f"{'bw_low':>7} {'bw_mid':>7} {'bw_high':>7}"
+        f"{'tf_low':>7} {'tf_mid':>7} {'tf_high':>7} {'':>2} | "
+        f"{'bw_low':>7} {'bw_mid':>7} {'bw_high':>7} {'':>2}"
     )
     print(header)
     print("-" * len(header))
@@ -136,15 +137,35 @@ def compare(old_base, new_base, old_label, new_label):
                 return f"{'':>7} {'':>7} {'':>7}"
             return f"{lo:>6.2f}x {mi:>6.2f}x {hi:>6.2f}x"
 
-        flag = ""
-        for v in [tf_lo, tf_mi, tf_hi, bw_lo, bw_mi, bw_hi]:
-            if v is not None and abs(v - 1) > 0.05:
-                flag = " <<"
-                break
+        # tf flag: ↑ up >50%, ↓ down >50%, ↕ mixed
+        tf_vals = [v for v in [tf_lo, tf_mi, tf_hi] if v is not None]
+        tf_up = any(v > 1.5 for v in tf_vals)
+        tf_down = any(v < 1 / 1.5 for v in tf_vals)
+        if tf_up and tf_down:
+            tf_flag = " ↕"
+        elif tf_up:
+            tf_flag = " ↑"
+        elif tf_down:
+            tf_flag = " ↓"
+        else:
+            tf_flag = "  "
+
+        # bw flag: ↑ up >50%, ↓ down >50%, ↕ mixed
+        bw_vals = [v for v in [bw_lo, bw_mi, bw_hi] if v is not None]
+        bw_up = any(v > 1.5 for v in bw_vals)
+        bw_down = any(v < 1 / 1.5 for v in bw_vals)
+        if bw_up and bw_down:
+            bw_flag = " ↕"
+        elif bw_up:
+            bw_flag = " ↑"
+        elif bw_down:
+            bw_flag = " ↓"
+        else:
+            bw_flag = "  "
 
         tf_part = fmt_tier(tf_lo, tf_mi, tf_hi)
         bw_part = fmt_tier(bw_lo, bw_mi, bw_hi)
-        print(f"{prefix}{tf_part} | {bw_part}{flag}")
+        print(f"{prefix}{tf_part}{tf_flag} | {bw_part}{bw_flag}")
 
 
 def find_intel_base(report_dir):
