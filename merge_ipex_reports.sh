@@ -44,11 +44,18 @@ echo "[INFO] Older report: $OLD_DIR"
 echo "[INFO] Newer report: $NEW_DIR"
 echo "[INFO] Merging into: $OLD_DIR"
 
-echo "[INFO] Overlaying new report..."
-rsync -a "$NEW_DIR/" "$OLD_DIR/"
+# Only sync ipex provider results; skip op output .txt files
+echo "[INFO] Overlaying ipex provider results only..."
+rsync -a \
+  --include='*/' \
+  --include='*/ipex/**' \
+  --exclude='*.txt' \
+  --exclude='*.jsonl' \
+  --exclude='*.csv' \
+  "$NEW_DIR/" "$OLD_DIR/"
 
 # Summary
 echo ""
 echo "=== Merge complete: $OLD_DIR ==="
-echo "Merged result:"
-find "$OLD_DIR" -type f -name '*.csv' -printf '  %P\n' 2>/dev/null | sort
+echo "Synced ipex results:"
+find "$OLD_DIR" -type f -path '*/ipex/*' -printf '  %P\n' 2>/dev/null | sort
