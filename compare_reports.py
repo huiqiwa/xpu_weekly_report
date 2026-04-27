@@ -69,9 +69,9 @@ def fmt_val(v):
     """Format a single ratio value with inline arrow, padded to 9 chars."""
     if v is None:
         return " " * 9
-    if v > 1.05:
+    if v > 1.10:
         arrow = " ↑"
-    elif v < 0.95:
+    elif v < 0.90:
         arrow = " ↓"
     else:
         arrow = "  "
@@ -190,7 +190,7 @@ def compare(old_base, new_base, old_label, new_label):
     # --- Compute / Memory ops table ---
     print(f"\n=== Compute / Memory Ops ===")
     print(f"Ratio = new / old for tflops & mem_bw.  >1 means new is better.")
-    print(f"↑ = up >5%, ↓ = down >5%")
+    print(f"↑ = up >10%, ↓ = down >10%")
     print(f"Tiers: cases sorted by new value, split into low/mid/high (each ~33%), showing median ratio")
     print(f"diff: +N = new has N extra cases, -N = old has N extra cases\n")
 
@@ -220,7 +220,7 @@ def compare(old_base, new_base, old_label, new_label):
     if collective_ops:
         print(f"\n=== Collective Communication Ops (grouped by world_size) ===")
         print(f"Ratio = new / old for bus_bw.  >1 means new is better.")
-        print(f"↑ = up >5%, ↓ = down >5%\n")
+        print(f"↑ = up >10%, ↓ = down >10%\n")
 
         coll_header = (
             f"{'op':>30} {'provider':>25} {'world_size':>10} {'dtype':>8} | "
