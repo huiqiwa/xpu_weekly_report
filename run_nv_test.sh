@@ -30,17 +30,20 @@ run_all() {
 run_test scale_dynamic_quant
 run_test head_rms_norm
 run_test head_rms_norm_dynamic_quant
-run_test add_rms_norm
+run_test add_rms_norm_dynamic_quant
 
-# Attention & rope & kvcache
+# Attention & rope & kvcache 
 run_test rotary_embedding
+run_test multimodal_rotary_embedding
+run_test store_kv_cache
+run_test dequant_kv_cache
 run_test flash_attention
+
 
 # gemm & group_gemm & moe_ops
 run_test moe_gating_gemm
 run_test quant_matmul
 run_test moe_quant_group_gemm
-run_test moe_quant_group_gemm_combine
 run_test moe_softmax_topk
 run_test moe_scatter_dynamic_quant
 run_test moe_swiglu_dynamic_quant
@@ -86,14 +89,19 @@ run_test log
 run_test sin
 run_test sqrt
 
+# sage_attention
+run_test sage_attention_page
+run_test sage_attention_decode_page
+run_test sage_attention_v1
+
 # xccl ops
+run_test device2device
+run_test device2host
+run_test host2device
 run_test all_reduce
 run_test all_gather
 run_test reduce_scatter
 run_test all_to_all
-run_test device2device
-run_test device2host
-run_test host2device
 
 }
 

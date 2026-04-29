@@ -3,3 +3,6 @@ reports
 compose.txt
 nv_reports
 compare_result*
+comparison_*.xlsx
+__pycache__/
+*.pyc
