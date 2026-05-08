@@ -21,14 +21,7 @@ RUN curl -L -O "https://github.com/conda-forge/miniforge/releases/latest/downloa
     bash Miniforge3-$(uname)-$(uname -m).sh -bc -p /opt/miniforge3 && \
     rm -f Miniforge3-$(uname)-$(uname -m).sh
 
-RUN /opt/miniforge3/bin/conda init bash && \
-    /opt/miniforge3/bin/conda create -y -n xpu-perf-test python=3.12
-
 SHELL ["/bin/bash", "-l", "-c"]
-
-RUN source /opt/miniforge3/etc/profile.d/conda.sh && \
-    conda activate xpu-perf-test && \
-    pip install torch==2.11.0+xpu pyyaml
 
 WORKDIR /workspace
 

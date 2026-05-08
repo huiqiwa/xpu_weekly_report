@@ -1,7 +1,9 @@
 BANNER="============================================================"
-step_banner() { echo -e "\n$BANNER\n  [$1] $2\n$BANNER"; }
+STEP=0
+TOTAL=11
+step_banner() { STEP=$((STEP + 1)); echo -e "\n$BANNER\n  [$STEP/$TOTAL] $1\n$BANNER"; }
 
-step_banner "1/10" "Installing system packages"
+step_banner "Installing system packages"
 APT="apt"
 if [ "$(id -u)" -ne 0 ]; then APT="sudo apt"; fi
 $APT update && $APT install -y --no-install-recommends ccache intel-ocloc 
@@ -10,30 +12,33 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-step_banner "2/10" "Activating environment"
+step_banner "Activating environment"
 source "$SCRIPT_DIR/activate_env.sh"
 
-step_banner "3/10" "Installing PyTorch"
+step_banner "Installing PyTorch"
 pip install torch==2.11.0+xpu pyyaml --extra-index-url https://download.pytorch.org/whl/xpu
 
-step_banner "4/10" "Installing numpy"
+step_banner "Installing numpy"
 pip install numpy
 
-step_banner "5/10" "Preparing xpu-perf"
-bash "$SCRIPT_DIR/prepare_xpu_perf.sh"
+step_banner "Installing ninja"
+pip install ninja
 
-step_banner "6/10" "Building vllm-xpu-kernels"
+step_banner "Building vllm-xpu-kernels"
 bash "$SCRIPT_DIR/build_vllm_xpu_kernels.sh"
 
-step_banner "7/10" "Building auto-round"
+step_banner "Building auto-round"
 bash "$SCRIPT_DIR/build_auto_round.sh"
 
-step_banner "8/10" "Building sycl-tla"
+step_banner "Building sycl-tla"
 bash "$SCRIPT_DIR/build_sycl_tla.sh"
 
-step_banner "9/10" "Building oneDNN"
+step_banner "Building oneDNN"
 bash "$SCRIPT_DIR/build_onednn.sh"
 
-step_banner "10/10" "Building IPEX"
-bash "$SCRIPT_DIR/build_ipex.sh"
+# step_banner "Building IPEX"
+# bash "$SCRIPT_DIR/build_ipex.sh"
+
+step_banner "Preparing xpu-perf"
+bash "$SCRIPT_DIR/prepare_xpu_perf.sh"
 

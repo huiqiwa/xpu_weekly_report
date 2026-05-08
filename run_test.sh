@@ -1,5 +1,5 @@
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-DEVICE=0,1
+DEVICE=0
 CCL_DEVICE=0,1
 REPORT_DIR="$(realpath -m "${1:-${SCRIPT_DIR}/reports/reports_$(TZ='Asia/Shanghai' date +%Y-%m-%d-%H-%M-%S)}")"
 
@@ -86,7 +86,7 @@ run_test() {
         return
     fi
     _kill_xpu_orphans "$DEVICE"
-    _run_with_timeout "$op_name" python launch.py --task_dir workloads --device $DEVICE --backend INTEL --task $op_name --report_dir $REPORT_DIR
+    _run_with_timeout "$op_name" python launch.py --task_dir workloads --numa 0 --device $DEVICE --backend INTEL --task $op_name --report_dir $REPORT_DIR
     sleep 10
 }
 
@@ -97,7 +97,7 @@ run_ccl_test() {
         return
     fi
     _kill_xpu_orphans "$CCL_DEVICE"
-    _run_with_timeout "$op_name" python launch.py --task_dir workloads --device $CCL_DEVICE --backend INTEL --task $op_name --report_dir $REPORT_DIR
+    _run_with_timeout "$op_name" python launch.py --task_dir workloads --numa 0 --device $CCL_DEVICE --backend INTEL --task $op_name --report_dir $REPORT_DIR
     sleep 30
 }
 

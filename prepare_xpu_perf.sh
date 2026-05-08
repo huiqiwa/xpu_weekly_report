@@ -33,14 +33,14 @@ else
   echo "Code and dependencies are up to date, skipping pip install."
 fi
 
-# Comment out ipex rms_norm provider to avoid work-group size RuntimeError
-sed -i 's/@ProviderRegistry.register_vendor_impl("rms_norm", "ipex")/#@ProviderRegistry.register_vendor_impl("rms_norm", "ipex")/' \
-    "${XPU_PERF_DIR}/micro_perf/backends/INTEL/ops/ipex/rms_norm.py"
+# # Comment out ipex rms_norm provider to avoid work-group size RuntimeError
+# sed -i 's/@ProviderRegistry.register_vendor_impl("rms_norm", "ipex")/#@ProviderRegistry.register_vendor_impl("rms_norm", "ipex")/' \
+#     "${XPU_PERF_DIR}/micro_perf/backends/INTEL/ops/ipex/rms_norm.py"
 
 
-# Adjust xccl batch size
-ADJUST_SCRIPT="${XPU_PERF_DIR}/micro_perf/backends/INTEL/ops/xccl/adjust_batch_size.sh"
-bash "$ADJUST_SCRIPT" b60
+# # Adjust xccl batch size
+# ADJUST_SCRIPT="${XPU_PERF_DIR}/micro_perf/backends/INTEL/ops/xccl/adjust_batch_size.sh"
+# bash "$ADJUST_SCRIPT" b60
 
 # Build SYCL extensions
 bash "$SCRIPT_DIR/build_sycl_ext.sh"

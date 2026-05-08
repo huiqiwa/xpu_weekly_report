@@ -10,7 +10,7 @@ fi
 CONDA_ENV="xpu-perf-test"
 if ! conda env list | grep -E "^${CONDA_ENV}\s" &>/dev/null; then
   echo "Creating conda environment '$CONDA_ENV'..."
-  conda create -y -n "$CONDA_ENV" python=3.12
+  conda create -y -n "$CONDA_ENV" python=3.12 pip
 fi
 eval "$(conda shell.bash hook)"
 conda activate "$CONDA_ENV"
