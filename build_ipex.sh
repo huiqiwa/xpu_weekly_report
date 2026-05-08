@@ -38,7 +38,7 @@ if ! python -c "import os; os.chdir('/tmp'); import intel_extension_for_pytorch"
   echo "[build_ipex] IPEX import failed, rebuilding..."
 
   # Clean stale CMake cache to avoid path mismatch (e.g. host vs container)
-  find "$IPEX_DIR/build" -name CMakeCache.txt -delete 2>/dev/null
+  find "$IPEX_DIR/build" -name CMakeCache.txt -delete 2>/dev/null || true
 
   export CCACHE_BASEDIR="$IPEX_DIR"
   export CCACHE_NOHASHDIR=1
