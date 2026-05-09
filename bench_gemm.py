@@ -41,8 +41,12 @@ dtype = dtype_map[dtype_str]
 
 if dtype_str == 'tfloat32':
     torch.set_float32_matmul_precision('high')
+    torch.backends.cuda.matmul.allow_tf32 = True
+    torch.backends.cudnn.allow_tf32 = True
 elif dtype_str == 'float32':
     torch.set_float32_matmul_precision('highest')
+    torch.backends.cuda.matmul.allow_tf32 = False
+    torch.backends.cudnn.allow_tf32 = False
 
 device = torch.device(f'cuda:{gpu_id}')
 torch.cuda.set_device(device)
