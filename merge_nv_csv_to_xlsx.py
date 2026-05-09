@@ -126,15 +126,17 @@ _SKU_PEAK_SPECS = {
     },
     "RTX 5090": {
         "bw_gbs": 1792.0,
-        "fp32": 106.05824,
-        "low": 212.11648,    # bf16 / fp16
-        "int8": 424.23296,   # INT8
+        "fp32": 96.3,
+        "tfloat32": 124.7,
+        "low": 237.6,    # bf16 / fp16
+        "int8": 450.3,   # INT8
     },
     "RTX PRO 5000": {
         "bw_gbs": 1344.0,
         "fp32": 65.0,
-        "low": 258.0,    # bf16 / fp16 (tensor cores, no sparsity)
-        "int8": 516.0,   # INT8 (tensor cores, no sparsity)
+        "tfloat32": 113.6,
+        "low": 214.5792,    # bf16 / fp16 (tensor cores, no sparsity)
+        "int8": 457.76896,   # INT8 (tensor cores, no sparsity)
     },
 }
 
@@ -142,20 +144,22 @@ _SKU_PEAK_SPECS = {
 _default_specs = _SKU_PEAK_SPECS["RTX 5090"]
 PEAK_BW_GBS = _default_specs["bw_gbs"]
 PEAK_TFLOPS_FP32 = _default_specs["fp32"]
+PEAK_TFLOPS_TFLOAT32 = _default_specs.get("tfloat32", _default_specs["fp32"])
 PEAK_TFLOPS_LOW = _default_specs["low"]
 PEAK_TFLOPS_INT8 = _default_specs["int8"]
 
 
 def _apply_sku_specs(sku_name):
     """Set module-level peak specs based on the detected SKU name."""
-    global PEAK_BW_GBS, PEAK_TFLOPS_FP32, PEAK_TFLOPS_LOW, PEAK_TFLOPS_INT8
+    global PEAK_BW_GBS, PEAK_TFLOPS_FP32, PEAK_TFLOPS_TFLOAT32, PEAK_TFLOPS_LOW, PEAK_TFLOPS_INT8
     for substring, specs in _SKU_PEAK_SPECS.items():
         if substring in sku_name:
             PEAK_BW_GBS = specs["bw_gbs"]
             PEAK_TFLOPS_FP32 = specs["fp32"]
+            PEAK_TFLOPS_TFLOAT32 = specs.get("tfloat32", specs["fp32"])
             PEAK_TFLOPS_LOW = specs["low"]
             PEAK_TFLOPS_INT8 = specs["int8"]
-            print(f"  SKU matched: {substring} -> BW={PEAK_BW_GBS} GB/s, FP32={PEAK_TFLOPS_FP32}, BF16/FP16={PEAK_TFLOPS_LOW}, INT8={PEAK_TFLOPS_INT8}")
+            print(f"  SKU matched: {substring} -> BW={PEAK_BW_GBS} GB/s, FP32={PEAK_TFLOPS_FP32}, TF32={PEAK_TFLOPS_TFLOAT32}, BF16/FP16={PEAK_TFLOPS_LOW}, INT8={PEAK_TFLOPS_INT8}")
             return
     print(f"  WARNING: No peak specs found for SKU '{sku_name}', using defaults (RTX 5090)")
 
@@ -223,7 +227,9 @@ def normalize_scalar(value):
 def compute_mfu(row):
     op_name = str(row.get("op_name", ""))
     dtype = str(row.get("dtype", "")).lower()
-    if "float32" in dtype or dtype in ("fp32", "tf32", "tfloat32"):
+    if dtype in ("tf32", "tfloat32"):
+        peak = PEAK_TFLOPS_TFLOAT32
+    elif "float32" in dtype or dtype == "fp32":
         peak = PEAK_TFLOPS_FP32
     elif dtype == "int8":
         peak = PEAK_TFLOPS_INT8

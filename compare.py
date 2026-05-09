@@ -50,15 +50,17 @@ _SKU_PEAK_SPECS = {
     },
     "RTX 5090": {
         "bw_gbs": 1792.0,
-        "fp32": 106.05824,
-        "low": 212.11648,
-        "int8": 424.23296,
+        "fp32": 96.3,
+        "tfloat32": 124.7,
+        "low": 237.6,
+        "int8": 450.3,
     },
     "RTX PRO 5000": {
         "bw_gbs": 1344.0,
         "fp32": 65.0,
-        "low": 258.0,
-        "int8": 516.0,
+        "tfloat32": 113.6,
+        "low": 214.5792,
+        "int8": 457.76896,
     },
 }
 
@@ -134,7 +136,9 @@ def _compute_mfu(row, specs, op_name):
     dtype = str(row.get("dtype", "")).lower()
     if op_name in SAGE_ATTENTION_OPS:
         peak = specs["int8"]
-    elif "float32" in dtype or dtype in ("fp32", "tf32", "tfloat32"):
+    elif dtype in ("tf32", "tfloat32"):
+        peak = specs.get("tfloat32", specs["fp32"])
+    elif "float32" in dtype or dtype == "fp32":
         peak = specs["fp32"]
     elif dtype == "int8":
         peak = specs["int8"]
