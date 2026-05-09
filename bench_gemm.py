@@ -12,6 +12,7 @@ default_shapes = {
     'bfloat16':  (4096, 8192, 8192, 3000, 500),
     'int8':      (8192, 8192, 8192, 3000, 500),
     'fp8_e4m3':  (8192, 8192, 8192, 3000, 500),
+    'nvfp4':     (8192, 8192, 8192, 3000, 500),
 }
 
 gpu_id = int(sys.argv[1]) if len(sys.argv) > 1 else 7
@@ -30,6 +31,7 @@ dtype_map = {
     'tfloat32': torch.float32,
     'int8': torch.int8,
     'fp8_e4m3': torch.float8_e4m3fn,
+    'nvfp4': torch.float4_e2m1fn_x2,
 }
 
 if dtype_str not in dtype_map:
@@ -52,6 +54,10 @@ if dtype_str == 'int8':
 elif dtype_str == 'fp8_e4m3':
     a = torch.randn(M, K, dtype=torch.bfloat16, device=device).to(dtype)
     b = torch.randn(K, N, dtype=torch.bfloat16, device=device).to(dtype)
+elif dtype_str == 'nvfp4':
+    assert K % 2 == 0, f'K ({K}) must be even for NVFP4 (x2 packing)'
+    a = torch.empty(M, K // 2, dtype=torch.float4_e2m1fn_x2, device=device)
+    b = torch.empty(N, K // 2, dtype=torch.float4_e2m1fn_x2, device=device)
 else:
     a = torch.randn(M, K, dtype=dtype, device=device)
     b = torch.randn(K, N, dtype=dtype, device=device)
@@ -66,6 +72,16 @@ elif dtype_str == 'fp8_e4m3':
     def gemm_fn(x, y):
         return torch._scaled_mm(x, y, scale_a=scale_a, scale_b=scale_b,
                                 out_dtype=torch.bfloat16, use_fast_accum=True)
+elif dtype_str == 'nvfp4':
+    # NVFP4: blockwise 1x16 scaling with fp8_e4m3fn scales
+    nvfp4_block_size = 16
+    n_scale_a = M * (K // 2) * 2 // nvfp4_block_size
+    n_scale_b = N * (K // 2) * 2 // nvfp4_block_size
+    scale_a = torch.ones(n_scale_a, dtype=torch.float8_e4m3fn, device=device)
+    scale_b = torch.ones(n_scale_b, dtype=torch.float8_e4m3fn, device=device)
+    def gemm_fn(x, y):
+        return torch._scaled_mm(x, y.t(), scale_a=scale_a, scale_b=scale_b,
+                                out_dtype=torch.bfloat16)
 else:
     def gemm_fn(x, y):
         return torch.matmul(x, y)
