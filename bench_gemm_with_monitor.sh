@@ -1,30 +1,34 @@
 #!/bin/bash
 # GEMM benchmark with real-time GPU frequency monitoring
-# Usage: ./bench_gemm_with_monitor.sh [GPU_ID] [M] [K] [N] [DTYPE] [ITERS]
+# Usage: ./bench_gemm_with_monitor.sh [GPU_ID] [DTYPE] [M] [K] [N] [ITERS]
 #   GPU_ID: GPU device index (default: 7)
-#   M:      Matrix M dimension (default: 4096)
-#   K:      Matrix K dimension (default: 4096)
-#   N:      Matrix N dimension (default: 4096)
-#   DTYPE:  Data type: float16/bfloat16/float32/tfloat32 (default: bfloat16)
-#   ITERS:  Number of iterations (default: 200)
+#   DTYPE:  Data type: float16/bfloat16/float32/tfloat32/int8/fp8_e4m3/fp8_e5m2/fp4_e2m1 (default: bfloat16)
+#   M/K/N:  Matrix dimensions (defaults based on dtype in bench_gemm.py)
+#   ITERS:  Number of iterations (default based on dtype in bench_gemm.py)
 
 GPU_ID=${1:-7}
-M=${2:-4096}
-K=${3:-8192}
-N=${4:-8192}
-DTYPE=${5:-bfloat16}
-ITERS=${6:-3000}
-WARMUP=500
+DTYPE=${2:-bfloat16}
+M=${3:-}
+K=${4:-}
+N=${5:-}
+ITERS=${6:-}
 SAMPLE_MS=200  # GPU frequency sampling interval in ms
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# Build python args: gpu_id dtype [M K N [iters [warmup]]]
+PYARGS=("$GPU_ID" "$DTYPE")
+if [ -n "$M" ] && [ -n "$K" ] && [ -n "$N" ]; then
+    PYARGS+=("$M" "$K" "$N")
+    [ -n "$ITERS" ] && PYARGS+=("$ITERS")
+fi
 
 echo "============================================"
 echo " GEMM Benchmark with GPU Frequency Monitor"
 echo "============================================"
 echo " GPU:    $GPU_ID"
-echo " Shape:  M=$M, K=$K, N=$N"
 echo " Dtype:  $DTYPE"
-echo " Iters:  $ITERS (warmup: $WARMUP)"
+[ -n "$M" ] && echo " Shape:  M=$M, K=$K, N=$N" || echo " Shape:  (dtype default)"
+[ -n "$ITERS" ] && echo " Iters:  $ITERS" || echo " Iters:  (dtype default)"
 echo " Sample: every ${SAMPLE_MS}ms"
 echo "============================================"
 
@@ -38,8 +42,7 @@ BENCH_OUTPUT="/tmp/bench_output_$$"
 echo ""
 echo ">>> Starting GEMM benchmark..."
 echo ""
-python3 "$SCRIPT_DIR/bench_gemm.py" \
-    "$GPU_ID" "$M" "$K" "$N" "$DTYPE" "$ITERS" "$WARMUP" > "$BENCH_OUTPUT" 2>&1 &
+python3 "$SCRIPT_DIR/bench_gemm.py" "${PYARGS[@]}" > "$BENCH_OUTPUT" 2>&1 &
 BENCH_PID=$!
 
 # Main process: real-time GPU frequency monitoring

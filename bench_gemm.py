@@ -4,18 +4,37 @@ import torch
 import sys
 import os
 
-gpu_id = int(sys.argv[1])
-M, K, N = int(sys.argv[2]), int(sys.argv[3]), int(sys.argv[4])
-dtype_str = sys.argv[5]
-iters = int(sys.argv[6])
-warmup = int(sys.argv[7])
+# Default (M, K, N, iters, warmup) per dtype — larger matrices for lower precision
+default_shapes = {
+    'float32':   (4096, 4096, 4096, 2000, 500),
+    'tfloat32':  (4096, 8192, 8192, 3000, 500),
+    'float16':   (4096, 8192, 8192, 3000, 500),
+    'bfloat16':  (4096, 8192, 8192, 3000, 500),
+    'int8':      (8192, 8192, 8192, 3000, 500),
+    'fp8_e4m3':  (8192, 8192, 8192, 3000, 500),
+}
+
+gpu_id = int(sys.argv[1]) if len(sys.argv) > 1 else 7
+dtype_str = sys.argv[2] if len(sys.argv) > 2 else 'bfloat16'
+defaults = default_shapes.get(dtype_str, (4096, 8192, 8192, 3000, 500))
+M = int(sys.argv[3]) if len(sys.argv) > 3 else defaults[0]
+K = int(sys.argv[4]) if len(sys.argv) > 4 else defaults[1]
+N = int(sys.argv[5]) if len(sys.argv) > 5 else defaults[2]
+iters = int(sys.argv[6]) if len(sys.argv) > 6 else defaults[3]
+warmup = int(sys.argv[7]) if len(sys.argv) > 7 else defaults[4]
 
 dtype_map = {
     'float16': torch.float16,
     'bfloat16': torch.bfloat16,
     'float32': torch.float32,
     'tfloat32': torch.float32,
+    'int8': torch.int8,
+    'fp8_e4m3': torch.float8_e4m3fn,
 }
+
+if dtype_str not in dtype_map:
+    print(f'Error: unsupported dtype "{dtype_str}". Supported: {", ".join(dtype_map.keys())}')
+    sys.exit(1)
 dtype = dtype_map[dtype_str]
 
 if dtype_str == 'tfloat32':
@@ -27,13 +46,34 @@ device = torch.device(f'cuda:{gpu_id}')
 torch.cuda.set_device(device)
 
 print(f'Allocating tensors: A[{M}x{K}] x B[{K}x{N}] ({dtype_str})')
-a = torch.randn(M, K, dtype=dtype, device=device)
-b = torch.randn(K, N, dtype=dtype, device=device)
+if dtype_str == 'int8':
+    a = torch.randint(-128, 127, (M, K), dtype=torch.int8, device=device)
+    b = torch.randint(-128, 127, (K, N), dtype=torch.int8, device=device)
+elif dtype_str == 'fp8_e4m3':
+    a = torch.randn(M, K, dtype=torch.bfloat16, device=device).to(dtype)
+    b = torch.randn(K, N, dtype=torch.bfloat16, device=device).to(dtype)
+else:
+    a = torch.randn(M, K, dtype=dtype, device=device)
+    b = torch.randn(K, N, dtype=dtype, device=device)
+
+# Select appropriate GEMM function
+if dtype_str == 'int8':
+    def gemm_fn(x, y):
+        return torch._int_mm(x, y)
+elif dtype_str == 'fp8_e4m3':
+    scale_a = torch.ones(1, dtype=torch.float32, device=device)
+    scale_b = torch.ones(1, dtype=torch.float32, device=device)
+    def gemm_fn(x, y):
+        return torch._scaled_mm(x, y, scale_a=scale_a, scale_b=scale_b,
+                                out_dtype=torch.bfloat16, use_fast_accum=True)
+else:
+    def gemm_fn(x, y):
+        return torch.matmul(x, y)
 
 # Warmup
 print(f'Warmup ({warmup} iters)...')
 for _ in range(warmup):
-    c = torch.matmul(a, b)
+    c = gemm_fn(a, b)
 torch.cuda.synchronize(device)
 
 # Benchmark
@@ -45,7 +85,7 @@ end_event = torch.cuda.Event(enable_timing=True)
 
 start_event.record()
 for i in range(iters):
-    c = torch.matmul(a, b)
+    c = gemm_fn(a, b)
 end_event.record()
 torch.cuda.synchronize(device)
 
@@ -65,11 +105,3 @@ print(f'  Avg TFLOPS:   {tflops:.2f}')
 print(f'  FLOPS/op:     {flops_per_op:.2e}')
 print('=' * 50)
 
-# Theoretical peak (5090D: 680 TC * freq * 128 OPs)
-print()
-print('  Reference (5090D BF16 theoretical peak):')
-print('    @ 2.407 GHz (boost):  209.5 TFLOPS')
-print('    @ 3.090 GHz (max):    268.6 TFLOPS')
-print(f'  Efficiency vs boost:    {tflops/209.5*100:.1f}%')
-print(f'  Efficiency vs max clk:  {tflops/268.6*100:.1f}%')
-print()
