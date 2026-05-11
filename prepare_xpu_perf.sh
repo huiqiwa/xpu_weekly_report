@@ -13,7 +13,7 @@ else
 fi
 
 if [ ! -d "$XPU_PERF_DIR/.git" ]; then
-  git clone https://github.com/abenmao/xpu-perf.git "$XPU_PERF_DIR"
+  git clone https://github.com/intel-sandbox/xpu-perf.git "$XPU_PERF_DIR"
 fi
 cd "$XPU_PERF_DIR"
 git checkout -- .
@@ -24,7 +24,7 @@ git checkout intel_gpu_backend
 git pull
 NEW_HEAD=$(git rev-parse HEAD)
 
-REQS_FILE="$XPU_PERF_DIR/micro_perf/requirements.txt"
+REQS_FILE="$XPU_PERF_DIR/projects/micro_perf/requirements.txt"
 MISSING=$(pip install --dry-run -r "$REQS_FILE" 2>&1 | grep "^Would install" || true)
 if [[ "$OLD_HEAD" != "$NEW_HEAD" || -n "$MISSING" ]]; then
   echo "Code updated or dependencies missing: $MISSING. Installing requirements..."

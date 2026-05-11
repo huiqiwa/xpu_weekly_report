@@ -9,6 +9,8 @@ export CCL_SYCL_CCL_BARRIER=1
 
 XPU_PERF_DIR="${SCRIPT_DIR}/../xpu-perf"
 
+export PYTHONPATH="$XPU_PERF_DIR/src:$PYTHONPATH"
+
 source "$SCRIPT_DIR/activate_env.sh"
 
 # Prepare xpu-perf: clean, update, patch, build extensions
@@ -16,7 +18,7 @@ bash "${SCRIPT_DIR}/prepare_xpu_perf.sh"
 
 mkdir -p "$REPORT_DIR"
 
-cd "${XPU_PERF_DIR}/micro_perf"
+cd "${XPU_PERF_DIR}/projects/micro_perf"
 
 # python launch.py --task_dir workloads/basic --device 0,1,2,3 --backend INTEL --task all --report_dir all_reports  &> /yupengzh/xpu-perf-logs/basic.txt
 

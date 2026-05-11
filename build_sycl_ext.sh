@@ -2,7 +2,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SYCL_EXT_DIR="$SCRIPT_DIR/../xpu-perf/micro_perf/backends/INTEL/ops/sycl_ext"
+SYCL_EXT_DIR="$SCRIPT_DIR/../xpu-perf/projects/micro_perf/vendor_ops/INTEL/ops/sycl_ext"
 
 source "$SCRIPT_DIR/activate_env.sh"
 
@@ -20,11 +20,4 @@ if [[ "$NEED_BUILD" -eq 0 ]]; then
   exit 0
 fi
 
-# Patch build.sh to use ccache, build, then restore
-export CCACHE_BASEDIR="$SYCL_EXT_DIR"
-export CCACHE_NOHASHDIR=1
-export CCACHE_COMPILERCHECK=content
-cd "$SYCL_EXT_DIR"
-sed -i 's/^icpx /ccache icpx /' build.sh
 bash build.sh
-sed -i 's/^ccache icpx /icpx /' build.sh
