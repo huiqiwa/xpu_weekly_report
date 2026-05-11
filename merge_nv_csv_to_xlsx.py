@@ -46,13 +46,16 @@ def auto_fit_columns(worksheet, max_width=80):
 
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 _PARENT_DIR = os.path.dirname(_SCRIPT_DIR)
-_REPORTS_ROOT = os.path.join(_SCRIPT_DIR, "nv_reports")
-_report_candidates = sorted(
-    [d for d in glob.glob(os.path.join(glob.escape(_REPORTS_ROOT), "reports_*")) if os.path.isdir(d)]
-)
-if not _report_candidates:
-    raise FileNotFoundError(f"No report directories found under: {_REPORTS_ROOT}")
-BASE_DIR = _report_candidates[-1]
+_DEFAULT_REPORTS_ROOT = os.path.join(_SCRIPT_DIR, "nv_reports")
+
+
+def _resolve_base_dir(reports_root):
+    candidates = sorted(
+        [d for d in glob.glob(os.path.join(glob.escape(reports_root), "reports_*")) if os.path.isdir(d)]
+    )
+    if not candidates:
+        raise FileNotFoundError(f"No report directories found under: {reports_root}")
+    return candidates[-1]
 WORKLOADS_DIR = os.path.join(_PARENT_DIR, "xpu-perf", "micro_perf", "workloads")
 
 OP_GROUPS = [
@@ -62,7 +65,7 @@ OP_GROUPS = [
             "scale_dynamic_quant",
             "head_rms_norm",
             "head_rms_norm_dynamic_quant",
-            "add_rms_norm",
+            "add_rms_norm_dynamic_quant",
         ],
     ),
     (
@@ -120,23 +123,24 @@ OP_ORDER_MAP = {op_name: index for index, op_name in enumerate(ORDERED_OPS)}
 _SKU_PEAK_SPECS = {
     "RTX 5090 D": {
         "bw_gbs": 1792.0,
-        "fp32": 123.03104,
-        "low": 246.06208,    # bf16 / fp16
-        "int8": 492.12416,   # INT8
+        "fp32": 96.3,
+        "tfloat32": 123.7,
+        "low": 246.06208,
+        "int8": 480.46,
     },
     "RTX 5090": {
         "bw_gbs": 1792.0,
         "fp32": 96.3,
         "tfloat32": 124.7,
-        "low": 237.6,    # bf16 / fp16
-        "int8": 450.3,   # INT8
+        "low": 237.6,
+        "int8": 450.3,
     },
     "RTX PRO 5000": {
         "bw_gbs": 1344.0,
-        "fp32": 65.0,
+        "fp32": 55.1,
         "tfloat32": 113.6,
-        "low": 214.5792,    # bf16 / fp16 (tensor cores, no sparsity)
-        "int8": 457.76896,   # INT8 (tensor cores, no sparsity)
+        "low": 214.5792,
+        "int8": 457.76896,
     },
 }
 
@@ -678,16 +682,17 @@ def build_provider_status(report_frames, registered_df, failed_df, enriched_repo
 def parse_args():
     parser = argparse.ArgumentParser(description="Merge NVIDIA xpu-perf CSV reports into one xlsx workbook.")
     parser.add_argument("--workloads-dir", default=WORKLOADS_DIR, help="Workloads JSON directory.")
+    parser.add_argument("--nv-reports-dir", default=None, help="Output directory for NV reports (default: <script_dir>/nv_reports).")
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
-    base_dir = BASE_DIR
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    nv_reports_dir = args.nv_reports_dir if args.nv_reports_dir else os.path.join(script_dir, "nv_reports")
+    base_dir = _resolve_base_dir(nv_reports_dir)
     workloads_dir = args.workloads_dir
     logs_dir = base_dir
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    nv_reports_dir = os.path.join(script_dir, "nv_reports")
     os.makedirs(nv_reports_dir, exist_ok=True)
     report_csv_base = resolve_report_csv_base(base_dir)
     sku_name = os.path.basename(report_csv_base)

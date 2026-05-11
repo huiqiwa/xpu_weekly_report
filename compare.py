@@ -44,9 +44,10 @@ _SKU_PEAK_SPECS = {
     },
     "RTX 5090 D": {
         "bw_gbs": 1792.0,
-        "fp32": 123.03104,
+        "fp32": 96.3,
+        "tfloat32": 123.7,
         "low": 246.06208,
-        "int8": 492.12416,
+        "int8": 480.46,
     },
     "RTX 5090": {
         "bw_gbs": 1792.0,
@@ -57,7 +58,7 @@ _SKU_PEAK_SPECS = {
     },
     "RTX PRO 5000": {
         "bw_gbs": 1344.0,
-        "fp32": 65.0,
+        "fp32": 55.1,
         "tfloat32": 113.6,
         "low": 214.5792,
         "int8": 457.76896,
@@ -229,7 +230,24 @@ def load_report_frames(base_dir):
     for op_name, prov_dict in grouped.items():
         merged[op_name] = {}
         for provider, frames in prov_dict.items():
-            merged[op_name][provider] = pd.concat(frames, ignore_index=True, sort=False)
+            df = pd.concat(frames, ignore_index=True, sort=False)
+            # Normalise mode / attn_mode for flash_attention:
+            # Some providers use "mode" while others use "attn_mode".
+            # Unify into "attn_mode" so cross-provider keys match.
+            if op_name == "flash_attention":
+                if "attn_mode" not in df.columns and "mode" in df.columns:
+                    df["attn_mode"] = df["mode"]
+                elif "attn_mode" in df.columns and "mode" in df.columns:
+                    df["attn_mode"] = df["attn_mode"].fillna(df["mode"])
+                if "mode" in df.columns:
+                    df.drop(columns=["mode"], inplace=True)
+                # Drop config columns that are entirely empty for this provider
+                # (they originate from other providers' column superset).
+                optional_cols = ["cache_type", "dst_dtype", "qk_compute_dtype", "pv_compute_dtype"]
+                for col in optional_cols:
+                    if col in df.columns and df[col].isna().all():
+                        df.drop(columns=[col], inplace=True)
+            merged[op_name][provider] = df
     return merged
 
 
@@ -290,12 +308,15 @@ def process_op(op_name, prov1, prov2, specs1, specs2):
 
     # Also include config columns that exist in arch1 but not arch2,
     # so that e.g. block_size from Intel data is not lost.
+    # Only include columns present in ALL arch1 providers (intersection).
     if prov1 and prov2:
         arch1_cfg_sets = [frozenset(_config_columns(df, op_name)) for df in prov1.values()]
-        arch1_cfg_union = frozenset().union(*arch1_cfg_sets)
+        arch1_cfg_intersection = arch1_cfg_sets[0]
+        for s in arch1_cfg_sets[1:]:
+            arch1_cfg_intersection &= s
         existing = frozenset(config_cols)
         arch1_ref_df = next(iter(prov1.values()))
-        extra = [c for c in arch1_ref_df.columns if c in arch1_cfg_union and c not in existing]
+        extra = [c for c in arch1_ref_df.columns if c in arch1_cfg_intersection and c not in existing]
         if extra:
             config_cols = config_cols + extra
             ref_cfg = ref_cfg | frozenset(extra)
