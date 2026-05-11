@@ -6,3 +6,5 @@ compare_result*
 comparison_*.xlsx
 __pycache__/
 *.pyc
+ipex_reports
+*.xlsx

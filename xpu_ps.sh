@@ -2,19 +2,25 @@
 # Show processes occupying XPU devices along with user/command info.
 # Usage: bash xpu_ps.sh
 
-pids=$(sudo xpu-smi ps 2>/dev/null | awk 'NR>1 && $2!="xpu-smi" {pids[$1]=1} END {for(p in pids) printf p","}' | sed 's/,$//')
+if [[ $(id -u) -eq 0 ]]; then
+    SUDO=""
+else
+    SUDO="sudo"
+fi
+
+pids=$($SUDO xpu-smi ps 2>/dev/null | awk 'NR>1 && $2!="xpu-smi" {pids[$1]=1} END {for(p in pids) printf p","}' | sed 's/,$//')
 
 if [[ -z "$pids" ]]; then
     echo "No user processes on XPU."
     echo ""
     echo "=== Device Utilization ==="
-    sudo xpu-smi dump -m 0,5,31 -n1 2>/dev/null
+    $SUDO xpu-smi dump -m 0,5,31 -n1 2>/dev/null
     exit 0
 fi
 
 # Device-level summary (deduplicated per PID)
 echo "=== XPU Device Usage ==="
-sudo xpu-smi ps 2>/dev/null | awk 'NR==1{print;next} $2!="xpu-smi"{print}'
+$SUDO xpu-smi ps 2>/dev/null | awk 'NR==1{print;next} $2!="xpu-smi"{print}'
 echo ""
 
 # Build PID -> devices mapping
@@ -27,7 +33,7 @@ while IFS= read -r line; do
     else
         pid_devices[$pid]="$dev"
     fi
-done < <(sudo xpu-smi ps 2>/dev/null | awk 'NR>1 && $2!="xpu-smi"{print}')
+done < <($SUDO xpu-smi ps 2>/dev/null | awk 'NR>1 && $2!="xpu-smi"{print}')
 
 # Process details with device info
 echo "=== Process Details ==="
@@ -47,4 +53,4 @@ done
 # Device utilization snapshot
 echo ""
 echo "=== Device Utilization ==="
-sudo xpu-smi dump -m 0,5,31 -n1 2>/dev/null
+$SUDO xpu-smi dump -m 0,5,31 -n1 2>/dev/null
