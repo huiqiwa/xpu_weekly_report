@@ -20,4 +20,4 @@ if [[ "$NEED_BUILD" -eq 0 ]]; then
   exit 0
 fi
 
-bash build.sh
+bash "$SYCL_EXT_DIR/build.sh"

@@ -53,7 +53,7 @@ _report_candidates = sorted(
 if not _report_candidates:
     raise FileNotFoundError(f"No report directories found under: {_REPORTS_ROOT}")
 BASE_DIR = _report_candidates[-1]
-WORKLOADS_DIR = os.path.join(_PARENT_DIR, "xpu-perf", "micro_perf", "workloads")
+WORKLOADS_DIR = os.path.join(_PARENT_DIR, "xpu-perf", "projects", "micro_perf", "workloads")
 
 OP_GROUPS = [
     (
