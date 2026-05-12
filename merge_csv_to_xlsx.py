@@ -372,16 +372,31 @@ def append_missing_cases_to_reports(workload_cases, report_frames, registered_df
             report_columns = set(working_df.columns)
             missing_rows = []
 
-            for expected_case in expected_cases:
-                if working_df.empty:
-                    matched = False
-                else:
-                    matched = any(
-                        case_matches_row(expected_case, row, report_columns)
-                        for _, row in working_df.iterrows()
-                    )
+            # Pre-normalize report rows for O(1) lookup instead of O(n) per case
+            _norm_rows = []
+            if not working_df.empty:
+                _comparable_cols_all = [c for c in working_df.columns
+                                        if c not in METRIC_COLUMNS and not c.startswith("_")]
+                for _, row in working_df.iterrows():
+                    _norm_rows.append({c: normalize_scalar(row[c]) for c in _comparable_cols_all})
+            _sig_cache = {}  # tuple of comparable columns -> set of value tuples
 
-                if matched:
+            for expected_case in expected_cases:
+                comparable_columns = tuple(sorted(
+                    c for c in expected_case
+                    if not c.startswith("_") and c in report_columns and c not in METRIC_COLUMNS
+                ))
+                if not comparable_columns:
+                    continue
+
+                if comparable_columns not in _sig_cache:
+                    sigs = set()
+                    for nr in _norm_rows:
+                        sigs.add(tuple(nr.get(c, "") for c in comparable_columns))
+                    _sig_cache[comparable_columns] = sigs
+
+                expected_sig = tuple(normalize_scalar(expected_case[c]) for c in comparable_columns)
+                if expected_sig in _sig_cache[comparable_columns]:
                     continue
 
                 missing_row = {
