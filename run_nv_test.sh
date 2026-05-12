@@ -49,6 +49,8 @@ run_test moe_scatter_dynamic_quant
 run_test moe_swiglu_dynamic_quant
 run_test swiglu_dynamic_quant
 run_test moe_gather
+run_test moe_quant_group_gemm_combine
+run_test quant_group_gemm_reduce_sum
 
 # tensor_gemm_ops
 run_test gemm

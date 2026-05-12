@@ -118,7 +118,6 @@ run_test store_kv_cache
 run_test dequant_kv_cache
 run_test flash_attention
 
-
 # gemm & group_gemm & moe_ops
 run_test moe_gating_gemm
 run_test quant_matmul
@@ -128,6 +127,8 @@ run_test moe_scatter_dynamic_quant
 run_test moe_swiglu_dynamic_quant
 run_test swiglu_dynamic_quant
 run_test moe_gather
+run_test moe_quant_group_gemm_combine
+run_test quant_group_gemm_reduce_sum
 
 # tensor_gemm_ops
 run_test gemm

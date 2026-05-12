@@ -119,6 +119,8 @@ run_test moe_softmax_topk
 run_test moe_scatter_dynamic_quant
 run_test moe_swiglu_dynamic_quant
 run_test moe_gather
+run_test moe_quant_group_gemm_combine
+run_test quant_group_gemm_reduce_sum
 
 # sage_attention
 run_test sage_attention_page

@@ -86,6 +86,8 @@ OP_GROUPS = [
             "moe_swiglu_dynamic_quant",
             "swiglu_dynamic_quant",
             "moe_gather",
+            "moe_quant_group_gemm_combine",
+            "quant_group_gemm_reduce_sum",
         ],
     ),
     ("tensor_gemm_ops", ["gemm"]),
