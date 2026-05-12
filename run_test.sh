@@ -113,7 +113,6 @@ run_test add_rms_norm_dynamic_quant
 
 # Attention & rope & kvcache 
 run_test rotary_embedding
-run_test multimodal_rotary_embedding
 run_test store_kv_cache
 run_test dequant_kv_cache
 run_test flash_attention

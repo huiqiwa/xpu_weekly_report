@@ -46,7 +46,6 @@ OP_CONFIG = {
 
     # Attention & rope & kvcache
     "rotary_embedding":             {"x_fields": ["q_seq_len", "q_len", "batch_size", "cache_len"], "filters": ["schema", "arg_type", "provider", "dtype", "mode", "attn_mode", "q_head_num", "kv_head_num", "head_dim", "rope_offset", "rope_dim"]},
-    "multimodal_rotary_embedding":  {"x_fields": ["q_len", "batch_size"], "filters": ["arg_type", "provider", "dtype"]},
     "store_kv_cache":               {"x_fields": ["q_len", "batch_size", "cache_len"], "filters": ["arg_type", "provider", "dtype", "cache_dtype", "attn_mode", "block_size", "kv_head_num", "head_dim"]},
     "dequant_kv_cache":             {"x_fields": ["q_len", "batch_size", "cache_len"], "filters": ["arg_type", "provider", "dtype", "dst_dtype", "attn_mode", "q_head_num", "kv_head_num", "head_dim"]},
     "flash_attention":              {"x_fields": ["q_len", "batch_size", "cache_len"], "filters": ["arg_type", "provider", "dtype", "cache_dtype", "attn_mode", "block_size", "q_head_num", "kv_head_num", "head_dim"]},
@@ -60,6 +59,8 @@ OP_CONFIG = {
     "moe_swiglu_dynamic_quant":    {"x_fields": ["num_tokens", "hidden_size"], "filters": ["arg_type", "provider", "dtype", "dst_dtype", "topk", "num_experts"]},
     "swiglu_dynamic_quant":        {"x_fields": ["num_tokens", "hidden_size"], "filters": ["arg_type", "provider", "dtype", "dst_dtype"]},
     "moe_gather":                  {"x_fields": ["num_tokens", "hidden_size"], "filters": ["arg_type", "provider", "dtype", "num_experts", "topk"]},
+    "moe_quant_group_gemm_combine": {"x_fields": ["num_tokens", "hidden_size", "new_hidden_size"], "filters": ["arg_type", "provider", "dtype", "w_dtype", "dst_dtype", "num_experts", "topk"]},
+    "quant_group_gemm_reduce_sum":  {"x_fields": ["num_tokens", "hidden_size", "new_hidden_size"], "filters": ["arg_type", "provider", "dtype", "w_dtype", "dst_dtype"]},
 
     # tensor_gemm
     "gemm":                        {"x_fields": ["M", "K", "N"], "filters": ["arg_type", "provider", "dtype"]},
@@ -117,9 +118,10 @@ OP_CONFIG = {
 
 OP_ORDER = [
     "scale_dynamic_quant", "head_rms_norm", "head_rms_norm_dynamic_quant", "add_rms_norm_dynamic_quant",
-    "rotary_embedding", "multimodal_rotary_embedding", "store_kv_cache", "dequant_kv_cache", "flash_attention",
+    "rotary_embedding", "store_kv_cache", "dequant_kv_cache", "flash_attention",
     "moe_gating_gemm", "quant_matmul", "moe_quant_group_gemm", "moe_softmax_topk",
     "moe_scatter_dynamic_quant", "moe_swiglu_dynamic_quant", "swiglu_dynamic_quant", "moe_gather",
+    "moe_quant_group_gemm_combine", "quant_group_gemm_reduce_sum",
     "gemm",
     "gelu", "silu",
     "embedding", "gather", "index_add", "index_select", "scatter",

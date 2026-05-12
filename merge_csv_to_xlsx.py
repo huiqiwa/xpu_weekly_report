@@ -69,7 +69,6 @@ OP_GROUPS = [
         "Attention & rope & kvcache",
         [
             "rotary_embedding",
-            "multimodal_rotary_embedding",
             "store_kv_cache",
             "dequant_kv_cache",
             "flash_attention",

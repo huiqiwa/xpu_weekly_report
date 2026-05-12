@@ -134,7 +134,6 @@ ORDERED_OPS = [
     "add_rms_norm_dynamic_quant",
     # Attention & rope & kvcache
     "rotary_embedding",
-    "multimodal_rotary_embedding",
     "store_kv_cache",
     "dequant_kv_cache",
     "flash_attention",
@@ -147,6 +146,8 @@ ORDERED_OPS = [
     "moe_swiglu_dynamic_quant",
     "swiglu_dynamic_quant",
     "moe_gather",
+    "moe_quant_group_gemm_combine",
+    "quant_group_gemm_reduce_sum",
     # tensor_gemm_ops
     "gemm",
     # vector_activation_ops
