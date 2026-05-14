@@ -39,6 +39,9 @@ bash "$SCRIPT_DIR/build_onednn.sh"
 # step_banner "Building IPEX"
 # bash "$SCRIPT_DIR/build_ipex.sh"
 
+step_banner "Building oneCCL and replacing libccl.so"
+bash "$SCRIPT_DIR/build_oneccl.sh"
+
 step_banner "Preparing xpu-perf"
 bash "$SCRIPT_DIR/prepare_xpu_perf.sh"
 
