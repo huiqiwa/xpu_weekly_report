@@ -60,8 +60,8 @@ elif dtype_str == 'fp8_e4m3':
     b = torch.randn(K, N, dtype=torch.bfloat16, device=device).to(dtype)
 elif dtype_str == 'nvfp4':
     assert K % 2 == 0, f'K ({K}) must be even for NVFP4 (x2 packing)'
-    a = torch.empty(M, K // 2, dtype=torch.float4_e2m1fn_x2, device=device)
-    b = torch.empty(N, K // 2, dtype=torch.float4_e2m1fn_x2, device=device)
+    a = torch.randint(0, 256, (M, K // 2), dtype=torch.uint8, device=device).view(dtype=torch.float4_e2m1fn_x2)
+    b = torch.randint(0, 256, (N, K // 2), dtype=torch.uint8, device=device).view(dtype=torch.float4_e2m1fn_x2)
 else:
     a = torch.randn(M, K, dtype=dtype, device=device)
     b = torch.randn(K, N, dtype=dtype, device=device)
