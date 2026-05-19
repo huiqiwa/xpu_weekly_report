@@ -8,3 +8,4 @@ __pycache__/
 *.pyc
 ipex_reports
 *.xlsx
+key_op_benchmark/cublas_gemm/cublas_gemm

@@ -1,0 +1,7 @@
+cublas_gemm
+gemm_fp32
+gemm_fp16
+gemm_bf16
+gemm_int8
+gemm_fp8
+gemm_nvfp4
