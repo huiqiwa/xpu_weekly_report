@@ -22,6 +22,8 @@ NEW_HEAD=$(git rev-parse HEAD)
 if [[ "$OLD_HEAD" != "$NEW_HEAD" ]] || ! python -c "import os; os.chdir('/tmp'); import vllm_xpu_kernels" 2>/dev/null; then
   echo "Code updated ($OLD_HEAD -> $NEW_HEAD) or build dir missing, rebuilding..."
 
+  rm -rf .deps build vllm_xpu_kernels.egg-info _version.py
+
   sed -i '/^torch==/d' requirements.txt
   pip install -r requirements.txt
 
