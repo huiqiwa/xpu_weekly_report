@@ -40,34 +40,35 @@ ARCH_NAME = os.path.basename(REPORT_DIR.rstrip('/'))
 OP_CONFIG = {
     # Norm & Quant
     "scale_dynamic_quant":          {"x_fields": ["num_tokens", "hidden_size"], "filters": ["arg_type", "provider", "dtype", "dst_dtype"]},
-    "head_rms_norm":                {"x_fields": ["num_tokens"], "filters": ["arg_type", "provider", "dtype", "head_dim", "total_head_num"]},
+    "head_rms_norm":                {"x_fields": ["num_tokens"], "filters": ["arg_type", "provider", "dtype", "head_dim", "total_head_num", "norm_head_num", "norm_head_start"]},
     "head_rms_norm_dynamic_quant":  {"x_fields": ["num_tokens"], "filters": ["arg_type", "provider", "dtype", "dst_dtype", "head_num", "head_dim"]},
     "add_rms_norm_dynamic_quant":   {"x_fields": ["num_tokens", "hidden_size"], "filters": ["arg_type", "provider", "dtype", "dst_dtype", "add_residual"]},
 
     # Attention & rope & kvcache
     "rotary_embedding":             {"x_fields": ["q_seq_len", "q_len", "batch_size", "cache_len"], "filters": ["schema", "arg_type", "provider", "dtype", "mode", "attn_mode", "q_head_num", "kv_head_num", "head_dim", "rope_offset", "rope_dim"]},
-    "store_kv_cache":               {"x_fields": ["q_len", "batch_size", "cache_len"], "filters": ["arg_type", "provider", "dtype", "cache_dtype", "attn_mode", "block_size", "kv_head_num", "head_dim"]},
-    "dequant_kv_cache":             {"x_fields": ["q_len", "batch_size", "cache_len"], "filters": ["arg_type", "provider", "dtype", "dst_dtype", "attn_mode", "q_head_num", "kv_head_num", "head_dim"]},
+    "store_kv_cache":               {"x_fields": ["q_len", "batch_size", "cache_len"], "filters": ["arg_type", "provider", "dtype", "cache_dtype", "attn_mode", "store_mode", "block_size", "q_head_num", "kv_head_num", "head_dim"]},
+    "dequant_kv_cache":             {"x_fields": ["q_len", "batch_size", "cache_len"], "filters": ["arg_type", "provider", "dtype", "dst_dtype", "attn_mode", "block_size", "q_head_num", "kv_head_num", "head_dim"]},
     "flash_attention":              {"x_fields": ["q_len", "batch_size", "cache_len"], "filters": ["arg_type", "provider", "dtype", "cache_dtype", "attn_mode", "block_size", "q_head_num", "kv_head_num", "head_dim"]},
 
     # gemm & group_gemm & moe_ops
-    "moe_gating_gemm":             {"x_fields": ["num_tokens", "hidden_size"], "filters": ["arg_type", "provider", "dtype", "dst_dtype", "num_experts"]},
+    "moe_gating_gemm":             {"x_fields": ["num_tokens", "hidden_size"], "filters": ["arg_type", "provider", "dtype", "compute_dtype", "dst_dtype", "num_experts", "sp_size"]},
     "quant_matmul":                {"x_fields": ["num_tokens", "hidden_size", "new_hidden_size"], "filters": ["arg_type", "provider", "dtype", "dst_dtype", "w_dtype", "compute_dtype", "sp_size"]},
-    "moe_quant_group_gemm":        {"x_fields": ["num_tokens", "hidden_size", "new_hidden_size"], "filters": ["arg_type", "provider", "dtype", "w_dtype", "dst_dtype", "num_experts", "topk"]},
+    "moe_quant_group_gemm":        {"x_fields": ["num_tokens", "hidden_size", "new_hidden_size"], "filters": ["arg_type", "provider", "dtype", "w_dtype", "compute_dtype", "dst_dtype", "num_experts", "topk", "ep_size", "sp_size"]},
     "moe_softmax_topk":            {"x_fields": ["num_tokens", "num_experts"], "filters": ["arg_type", "provider", "dtype", "compute_mode", "topk", "sp_size"]},
-    "moe_scatter_dynamic_quant":   {"x_fields": ["num_tokens", "hidden_size"], "filters": ["arg_type", "provider", "dtype", "dst_dtype", "topk", "num_experts"]},
-    "moe_swiglu_dynamic_quant":    {"x_fields": ["num_tokens", "hidden_size"], "filters": ["arg_type", "provider", "dtype", "dst_dtype", "topk", "num_experts"]},
+    "moe_scatter_dynamic_quant":   {"x_fields": ["num_tokens", "hidden_size"], "filters": ["arg_type", "provider", "dtype", "dst_dtype", "topk", "num_experts", "ep_size"]},
+    "moe_swiglu_dynamic_quant":    {"x_fields": ["num_tokens", "hidden_size"], "filters": ["arg_type", "provider", "dtype", "dst_dtype", "topk", "num_experts", "ep_size"]},
     "swiglu_dynamic_quant":        {"x_fields": ["num_tokens", "hidden_size"], "filters": ["arg_type", "provider", "dtype", "dst_dtype"]},
-    "moe_gather":                  {"x_fields": ["num_tokens", "hidden_size"], "filters": ["arg_type", "provider", "dtype", "num_experts", "topk"]},
-    "moe_quant_group_gemm_combine": {"x_fields": ["num_tokens", "hidden_size", "new_hidden_size"], "filters": ["arg_type", "provider", "dtype", "w_dtype", "dst_dtype", "num_experts", "topk"]},
-    "quant_group_gemm_reduce_sum":  {"x_fields": ["num_tokens", "hidden_size", "new_hidden_size"], "filters": ["arg_type", "provider", "dtype", "w_dtype", "dst_dtype"]},
+    "moe_gather":                  {"x_fields": ["num_tokens", "hidden_size"], "filters": ["arg_type", "provider", "dtype", "num_experts", "topk", "ep_size", "sp_size"]},
+    "moe_quant_group_gemm_combine": {"x_fields": ["num_tokens", "hidden_size", "new_hidden_size"], "filters": ["arg_type", "provider", "dtype", "w_dtype", "compute_dtype", "dst_dtype", "num_experts", "topk", "ep_size", "sp_size"]},
+    "quant_group_gemm_reduce_sum":  {"x_fields": ["num_tokens", "hidden_size", "new_hidden_size"], "filters": ["arg_type", "provider", "dtype", "w_dtype", "dst_dtype", "sp_size"]},
+    "qk_rms_norm":                  {"x_fields": ["num_tokens"], "filters": ["arg_type", "provider", "dtype", "q_head_num", "kv_head_num", "qk_head_dim", "v_head_dim", "sp_size"]},
 
     # tensor_gemm
-    "gemm":                        {"x_fields": ["M", "K", "N"], "filters": ["arg_type", "provider", "dtype"]},
+    "gemm":                        {"x_fields": ["M", "K", "N"], "filters": ["arg_type", "provider", "dtype", "dst_dtype"]},
 
     # vector_activation
-    "gelu":                        {"x_fields": ["batch_size"], "filters": ["arg_type", "provider", "dtype"]},
-    "silu":                        {"x_fields": ["batch_size"], "filters": ["arg_type", "provider", "dtype"]},
+    "gelu":                        {"x_fields": ["batch_size"], "filters": ["arg_type", "provider", "dtype", "dim_size"]},
+    "silu":                        {"x_fields": ["batch_size"], "filters": ["arg_type", "provider", "dtype", "dim_size"]},
 
     # vector_index
     "embedding":                   {"x_fields": ["dim_size", "src_batch_size"], "filters": ["arg_type", "provider", "dtype"]},
@@ -77,10 +78,10 @@ OP_CONFIG = {
     "scatter":                     {"x_fields": ["dim_size", "src_batch_size"], "filters": ["arg_type", "provider", "dtype"]},
 
     # vector_linear
-    "add":                         {"x_fields": ["batch_size"], "filters": ["arg_type", "provider", "dtype"]},
-    "cast":                        {"x_fields": ["batch_size"], "filters": ["arg_type", "provider", "dtype"]},
-    "mul":                         {"x_fields": ["batch_size"], "filters": ["arg_type", "provider", "dtype"]},
-    "sub":                         {"x_fields": ["batch_size"], "filters": ["arg_type", "provider", "dtype"]},
+    "add":                         {"x_fields": ["batch_size"], "filters": ["arg_type", "provider", "dtype", "dim_size"]},
+    "cast":                        {"x_fields": ["batch_size"], "filters": ["arg_type", "provider", "dtype", "dim_size"]},
+    "mul":                         {"x_fields": ["batch_size"], "filters": ["arg_type", "provider", "dtype", "dim_size"]},
+    "sub":                         {"x_fields": ["batch_size"], "filters": ["arg_type", "provider", "dtype", "dim_size"]},
 
     # vector_norm
     "layer_norm":                  {"x_fields": ["dim_size"], "filters": ["arg_type", "provider", "dtype", "batch_size"]},
@@ -94,21 +95,21 @@ OP_CONFIG = {
     "topk":                        {"x_fields": ["dim_size"], "filters": ["arg_type", "provider", "dtype", "batch_size", "k"]},
 
     # vector_sfu
-    "cos":                         {"x_fields": ["batch_size"], "filters": ["arg_type", "provider", "dtype"]},
-    "div":                         {"x_fields": ["batch_size"], "filters": ["arg_type", "provider", "dtype"]},
-    "exp":                         {"x_fields": ["batch_size"], "filters": ["arg_type", "provider", "dtype"]},
-    "log":                         {"x_fields": ["batch_size"], "filters": ["arg_type", "provider", "dtype"]},
-    "sin":                         {"x_fields": ["batch_size"], "filters": ["arg_type", "provider", "dtype"]},
-    "sqrt":                        {"x_fields": ["batch_size"], "filters": ["arg_type", "provider", "dtype"]},
+    "cos":                         {"x_fields": ["batch_size"], "filters": ["arg_type", "provider", "dtype", "dim_size"]},
+    "div":                         {"x_fields": ["batch_size"], "filters": ["arg_type", "provider", "dtype", "dim_size"]},
+    "exp":                         {"x_fields": ["batch_size"], "filters": ["arg_type", "provider", "dtype", "dim_size"]},
+    "log":                         {"x_fields": ["batch_size"], "filters": ["arg_type", "provider", "dtype", "dim_size"]},
+    "sin":                         {"x_fields": ["batch_size"], "filters": ["arg_type", "provider", "dtype", "dim_size"]},
+    "sqrt":                        {"x_fields": ["batch_size"], "filters": ["arg_type", "provider", "dtype", "dim_size"]},
 
     # xccl
-    "all_reduce":                  {"x_fields": ["batch_size"], "filters": ["arg_type", "provider", "dtype"]},
-    "all_gather":                  {"x_fields": ["batch_size"], "filters": ["arg_type", "provider", "dtype"]},
-    "reduce_scatter":              {"x_fields": ["batch_size"], "filters": ["arg_type", "provider", "dtype"]},
-    "all_to_all":                  {"x_fields": ["batch_size"], "filters": ["arg_type", "provider", "dtype"]},
-    "device2device":               {"x_fields": ["batch_size"], "filters": ["arg_type", "provider", "dtype"]},
-    "device2host":                 {"x_fields": ["batch_size"], "filters": ["arg_type", "provider", "dtype"]},
-    "host2device":                 {"x_fields": ["batch_size"], "filters": ["arg_type", "provider", "dtype"]},
+    "all_reduce":                  {"x_fields": ["batch_size"], "filters": ["arg_type", "provider", "dtype", "world_size", "dim_size"], "y_options": ["algo_bw(GB/s)", "bus_bw(GB/s)", "latency(us)"]},
+    "all_gather":                  {"x_fields": ["batch_size"], "filters": ["arg_type", "provider", "dtype", "world_size", "dim_size"], "y_options": ["algo_bw(GB/s)", "bus_bw(GB/s)", "latency(us)"]},
+    "reduce_scatter":              {"x_fields": ["batch_size"], "filters": ["arg_type", "provider", "dtype", "world_size", "dim_size"], "y_options": ["algo_bw(GB/s)", "bus_bw(GB/s)", "latency(us)"]},
+    "all_to_all":                  {"x_fields": ["batch_size"], "filters": ["arg_type", "provider", "dtype", "world_size", "dim_size"], "y_options": ["algo_bw(GB/s)", "bus_bw(GB/s)", "latency(us)"]},
+    "device2device":               {"x_fields": ["batch_size"], "filters": ["arg_type", "provider", "dtype", "world_size", "dim_size"], "y_options": ["mem_bw(GB/s)", "MBU(%)", "latency(us)"]},
+    "device2host":                 {"x_fields": ["batch_size"], "filters": ["arg_type", "provider", "dtype", "world_size", "dim_size"], "y_options": ["algo_bw(GB/s)", "bus_bw(GB/s)", "latency(us)"]},
+    "host2device":                 {"x_fields": ["batch_size"], "filters": ["arg_type", "provider", "dtype", "world_size", "dim_size"], "y_options": ["algo_bw(GB/s)", "bus_bw(GB/s)", "latency(us)"]},
 
     # sage_attention
     "sage_attention_page":         {"x_fields": ["q_head_num", "k_seq_len"], "filters": ["arg_type", "provider", "dtype", "mode", "kv_head_num", "head_dim", "batch_size", "block_size"]},
@@ -121,7 +122,7 @@ OP_ORDER = [
     "rotary_embedding", "store_kv_cache", "dequant_kv_cache", "flash_attention",
     "moe_gating_gemm", "quant_matmul", "moe_quant_group_gemm", "moe_softmax_topk",
     "moe_scatter_dynamic_quant", "moe_swiglu_dynamic_quant", "swiglu_dynamic_quant", "moe_gather",
-    "moe_quant_group_gemm_combine", "quant_group_gemm_reduce_sum",
+    "moe_quant_group_gemm_combine", "quant_group_gemm_reduce_sum", "qk_rms_norm",
     "gemm",
     "gelu", "silu",
     "embedding", "gather", "index_add", "index_select", "scatter",
@@ -144,7 +145,15 @@ Y_OPTIONS = [
     ("mem_bw(GB/s)", "mem_bw (GB/s)"),
     ("MFU(%)", "MFU (%)"),
     ("MBU(%)", "MBU (%)"),
+    ("latency(us)", "latency (us)"),
 ]
+
+# Label map for all known metric columns (used when y_options overrides Y_OPTIONS)
+Y_LABEL_MAP = {v: lb for v, lb in Y_OPTIONS}
+Y_LABEL_MAP.update({
+    "algo_bw(GB/s)": "algo_bw (GB/s)",
+    "bus_bw(GB/s)": "bus_bw (GB/s)",
+})
 
 # ── Data loading ──────────────────────────────────────────────
 
@@ -224,6 +233,14 @@ def gen_op_section(op_name, rows):
     header = list(rows[0].keys())
     x_fields, filter_cols = get_config(op_name, header)
 
+    # Per-op Y_OPTIONS override
+    _op_cfg = OP_CONFIG.get(op_name, {})
+    _y_keys = _op_cfg.get("y_options")
+    if _y_keys:
+        op_y_options = [(v, Y_LABEL_MAP.get(v, v)) for v in _y_keys]
+    else:
+        op_y_options = Y_OPTIONS
+
     # Only keep filters with values (skip cols where >half the rows are empty), and x_fields with >1 unique value
     # When "schema" column exists, use per-schema thresholds so schema-specific cols aren't excluded
     has_schema_col = "schema" in filter_cols
@@ -294,10 +311,11 @@ def gen_op_section(op_name, rows):
     op_id = op_name.replace(" ", "_").replace("-", "_")
     data_var = "data_" + op_id
 
-    # Decide default Y: pick MFU or MBU based on which has higher max
+    # Decide default Y: pick MFU or MBU based on which has higher max, or first op_y_options
     max_mfu = max((r.get("MFU(%)", 0) for r in json_rows), default=0)
     max_mbu = max((r.get("MBU(%)", 0) for r in json_rows), default=0)
-    default_y = "MFU(%)" if max_mfu >= max_mbu else "MBU(%)"
+    _pref = "MFU(%)" if max_mfu >= max_mbu else "MBU(%)"
+    default_y = _pref if any(v == _pref for v, _ in op_y_options) else op_y_options[0][0]
 
     # Collect unique values for filters and x_fields (needed for validation & defaults)
     filter_uval_map = {col: uvals for col, uvals in filter_info}
@@ -346,7 +364,7 @@ def gen_op_section(op_name, rows):
         '<option value="{v}"{sel}>{lb}</option>'.format(
             v=esc(v), lb=esc(lb),
             sel=' selected' if v == default_y else ''
-        ) for v, lb in Y_OPTIONS
+        ) for v, lb in op_y_options
     )
 
     # Build unique values for each x_field (for their filter dropdowns)
@@ -489,7 +507,7 @@ def gen_op_section(op_name, rows):
         else:
             cascade_info += '  if ("{col}" !== xF) info += "  |  {col}: " + document.getElementById("xf_{oid}_{col}").value;\n'.format(col=f, oid=op_id)
 
-    y_map_json = json.dumps({v: lb for v, lb in Y_OPTIONS}, ensure_ascii=False)
+    y_map_json = json.dumps({v: lb for v, lb in op_y_options}, ensure_ascii=False)
 
     section = '''
 <div class="op" id="s_{oid}">

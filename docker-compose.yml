@@ -1,8 +1,9 @@
+name: 2025.3.1
 services:
   node:
     # build: .
-    image: xpu-perf-weekly:latest
-    container_name: yupengzh-xpu-perf
+    image: xpu-perf-weekly:2025.3.1
+    container_name: huiqi-xpu-perf-2025.3.1
     entrypoint: []
     stdin_open: true
     tty: true

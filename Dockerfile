@@ -1,4 +1,4 @@
-FROM intel/oneapi:2026.0.0-devel-ubuntu24.04
+FROM intel/oneapi:2025.3.1-0-devel-ubuntu24.04
 
 ENV http_proxy=http://proxy-ir.intel.com:911 \
     https_proxy=http://proxy-ir.intel.com:912 \

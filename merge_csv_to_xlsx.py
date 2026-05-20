@@ -53,7 +53,7 @@ _report_candidates = sorted(
 if not _report_candidates:
     raise FileNotFoundError(f"No report directories found under: {_REPORTS_ROOT}")
 BASE_DIR = _report_candidates[-1]
-WORKLOADS_DIR = os.path.join(_PARENT_DIR, "xpu-perf", "projects", "micro_perf", "workloads")
+WORKLOADS_DIR = os.path.join(_PARENT_DIR, "xpu-perf", "projects", "micro_perf", "workloads_report")
 
 OP_GROUPS = [
     (
@@ -87,6 +87,7 @@ OP_GROUPS = [
             "moe_gather",
             "moe_quant_group_gemm_combine",
             "quant_group_gemm_reduce_sum",
+            "qk_rms_norm",
         ],
     ),
     ("tensor_gemm_ops", ["gemm"]),
@@ -356,7 +357,7 @@ def append_missing_cases_to_reports(workload_cases, report_frames, registered_df
 
         # Fallback: if no providers known but workload cases exist, use "torch" as default
         if not all_providers and expected_cases:
-            all_providers = ["torch"]
+            all_providers = ["base"]
 
         enriched_frames[op_name] = {}
 
@@ -383,10 +384,17 @@ def append_missing_cases_to_reports(workload_cases, report_frames, registered_df
             _sig_cache = {}  # tuple of comparable columns -> set of value tuples
 
             for expected_case in expected_cases:
-                comparable_columns = tuple(sorted(
-                    c for c in expected_case
-                    if not c.startswith("_") and c in report_columns and c not in METRIC_COLUMNS
-                ))
+                if report_columns:
+                    comparable_columns = tuple(sorted(
+                        c for c in expected_case
+                        if not c.startswith("_") and c in report_columns and c not in METRIC_COLUMNS
+                    ))
+                else:
+                    # No CSV exists: use all non-meta columns from expected_case
+                    comparable_columns = tuple(sorted(
+                        c for c in expected_case
+                        if not c.startswith("_") and c not in METRIC_COLUMNS
+                    ))
                 if not comparable_columns:
                     continue
 

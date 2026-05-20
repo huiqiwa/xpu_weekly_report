@@ -88,7 +88,7 @@ run_test() {
         return
     fi
     _kill_xpu_orphans "$DEVICE"
-    _run_with_timeout "$op_name" python launch.py --task_dir workloads --numa 0 --device $DEVICE --backend INTEL --task $op_name --report_dir $REPORT_DIR
+    _run_with_timeout "$op_name" python launch.py --task_dir workloads_report --numa 0 --device $DEVICE --backend INTEL --task $op_name --report_dir $REPORT_DIR
     sleep 10
 }
 
@@ -99,7 +99,7 @@ run_ccl_test() {
         return
     fi
     _kill_xpu_orphans "$CCL_DEVICE"
-    _run_with_timeout "$op_name" python launch.py --task_dir workloads --numa 0 --device $CCL_DEVICE --backend INTEL --task $op_name --report_dir $REPORT_DIR
+    _run_with_timeout "$op_name" python launch.py --task_dir workloads_report --numa 0 --device $CCL_DEVICE --backend INTEL --task $op_name --report_dir $REPORT_DIR
     sleep 30
 }
 
@@ -128,6 +128,7 @@ run_test swiglu_dynamic_quant
 run_test moe_gather
 run_test moe_quant_group_gemm_combine
 run_test quant_group_gemm_reduce_sum
+run_test qk_rms_norm
 
 # tensor_gemm_ops
 run_test gemm
