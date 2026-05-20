@@ -18,4 +18,5 @@ docker run -it --rm \
     -v "$PARENT_DIR":/workspace \
     -w /workspace/xpu_weekly_report \
     --name yupengzh-nv-perf \
-    nvcr.io/nvidia/vllm:26.03-py3 bash
+    nvcr.io/nvidia/pytorch:26.04-py3 \
+    bash -c "pip install flashinfer-python[cu13] flashinfer-cubin && exec bash"
