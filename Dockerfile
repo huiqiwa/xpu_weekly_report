@@ -26,3 +26,14 @@ SHELL ["/bin/bash", "-l", "-c"]
 WORKDIR /workspace
 
 RUN git config --global --add safe.directory '*'
+
+# Auto-activate environment on interactive shell (so docker commit users just need to bash in)
+RUN echo '\n# Auto-activate xpu-perf environment\n\
+if [ -f /opt/miniforge3/bin/conda ]; then\n\
+  eval "$(/opt/miniforge3/bin/conda shell.bash hook)"\n\
+  conda activate xpu-perf-test 2>/dev/null\n\
+fi\n\
+if [ -f /opt/intel/oneapi/setvars.sh ]; then\n\
+  source /opt/intel/oneapi/setvars.sh --force > /dev/null 2>&1\n\
+  source /opt/intel/oneapi/ccl/latest/env/vars.sh --force > /dev/null 2>&1\n\
+fi' >> /root/.bashrc

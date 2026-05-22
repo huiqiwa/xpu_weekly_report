@@ -9,8 +9,6 @@ export CCL_SYCL_CCL_BARRIER=1
 
 XPU_PERF_DIR="${SCRIPT_DIR}/../xpu-perf"
 
-export PYTHONPATH="$XPU_PERF_DIR/src:$PYTHONPATH"
-
 source "$SCRIPT_DIR/activate_env.sh"
 
 # Prepare xpu-perf: clean, update, patch, build extensions

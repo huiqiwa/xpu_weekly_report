@@ -31,6 +31,13 @@ git checkout intel_gpu_backend
 git pull
 NEW_HEAD=$(git rev-parse HEAD)
 
+
+# Install xpu-perf in editable mode so it's importable without PYTHONPATH
+if [[ "$OLD_HEAD" != "$NEW_HEAD" ]] || ! python -c "import xpu_perf" 2>/dev/null; then
+  echo "Installing xpu-perf in editable mode..."
+  pip install --no-build-isolation --no-deps -e "$XPU_PERF_DIR"
+fi
+
 REQS_FILE="$XPU_PERF_DIR/projects/micro_perf/requirements.txt"
 MISSING=$(pip install --dry-run -r "$REQS_FILE" 2>&1 | grep "^Would install" || true)
 if [[ "$OLD_HEAD" != "$NEW_HEAD" || -n "$MISSING" ]]; then

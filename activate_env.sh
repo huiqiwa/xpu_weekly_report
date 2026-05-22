@@ -4,7 +4,11 @@
 
 # Ensure conda is on PATH (non-interactive shells don't load .bashrc)
 if ! command -v conda &>/dev/null; then
-  eval "$("$HOME/miniforge3/bin/conda" shell.bash hook)"
+  if [ -f /opt/miniforge3/bin/conda ]; then
+    eval "$(/opt/miniforge3/bin/conda shell.bash hook)"
+  elif [ -f "$HOME/miniforge3/bin/conda" ]; then
+    eval "$("$HOME/miniforge3/bin/conda" shell.bash hook)"
+  fi
 fi
 
 CONDA_ENV="xpu-perf-test"
