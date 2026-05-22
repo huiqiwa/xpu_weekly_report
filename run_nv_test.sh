@@ -1,8 +1,10 @@
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
-DEVICE=0,1,2,3,4,5,6,7
+DEVICE=6
 REPORT_DIR="$(realpath -m "${1:-${SCRIPT_DIR}/nv_reports/reports_$(TZ='Asia/Shanghai' date +%Y-%m-%d-%H-%M-%S)}")"
 
 XPU_PERF_DIR="${SCRIPT_DIR}/../xpu-perf"
+
+export PYTHONPATH="$XPU_PERF_DIR/src:$PYTHONPATH"
 
 # Ensure xpu-perf repo is clean and up-to-date
 cd "$XPU_PERF_DIR"
@@ -10,7 +12,7 @@ git checkout -- .
 git clean -fd
 git pull --ff-only || { echo "[ERROR] Failed to pull latest xpu-perf code."; exit 1; }
 
-cd "$XPU_PERF_DIR/micro_perf"
+cd "$XPU_PERF_DIR/projects/micro_perf"
 
 mkdir -p "$REPORT_DIR"
 
@@ -20,7 +22,7 @@ run_test() {
         echo "[SKIP] $op_name: result already exists"
         return
     fi
-    python launch.py --task_dir workloads --device $DEVICE --backend GPU --task $op_name --report_dir $REPORT_DIR &> $REPORT_DIR/$op_name.txt
+    python launch.py --task_dir workloads_report --device $DEVICE --backend GPU --task $op_name --report_dir $REPORT_DIR &> $REPORT_DIR/$op_name.txt
     sleep 2
 }
 

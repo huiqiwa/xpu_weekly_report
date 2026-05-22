@@ -250,7 +250,7 @@ def main():
     print(f"Dtype: bfloat16 (only)")
     print()
 
-    fieldnames = ["mode", "batch", "q_len", "cache_len",
+    fieldnames = ["backend", "mode", "batch", "q_len", "cache_len",
                   "num_heads", "num_kv_heads", "head_dim",
                   "latency_ms", "tflops", "mem_bw_gbs"]
 
@@ -291,6 +291,7 @@ def main():
         tflops, latency, mem_bw = parse_tflops_latency(output)
 
         writer.writerow({
+            "backend": "fa2",
             "mode": mode,
             "batch": batch,
             "q_len": q_len,
