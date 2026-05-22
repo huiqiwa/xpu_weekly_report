@@ -12,8 +12,15 @@ else
   source "$SCRIPT_DIR/activate_env.sh"
 fi
 
+XPU_PERF_REPO="https://github.com/intel-sandbox/xpu-perf.git"
+GITHUB_TOKEN_FILE="$SCRIPT_DIR/.github_token"
+if [ -f "$GITHUB_TOKEN_FILE" ]; then
+  GITHUB_TOKEN=$(cat "$GITHUB_TOKEN_FILE")
+  XPU_PERF_REPO="https://${GITHUB_TOKEN}@github.com/intel-sandbox/xpu-perf.git"
+fi
+
 if [ ! -d "$XPU_PERF_DIR/.git" ]; then
-  git clone https://github.com/intel-sandbox/xpu-perf.git "$XPU_PERF_DIR"
+  git clone "$XPU_PERF_REPO" "$XPU_PERF_DIR"
 fi
 cd "$XPU_PERF_DIR"
 git checkout -- .

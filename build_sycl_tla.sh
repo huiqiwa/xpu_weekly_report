@@ -3,17 +3,33 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-SYCL_TLA_DIR="$WORKSPACE_DIR/sycl-tla"
+SYCL_TLA_DIR="$WORKSPACE_DIR/libraries.ai.cutlass.internal"
+SYCL_TLA_REPO="https://github.com/intel-innersource/libraries.ai.cutlass.internal.git"
+SYCL_TLA_BRANCH="master_next"
 BUILD_DIR="$SYCL_TLA_DIR/build"
 
+GITHUB_TOKEN_FILE="$SCRIPT_DIR/.github_token"
+if [ -f "$GITHUB_TOKEN_FILE" ]; then
+  GITHUB_TOKEN=$(cat "$GITHUB_TOKEN_FILE")
+  SYCL_TLA_REPO="https://${GITHUB_TOKEN}@github.com/intel-innersource/libraries.ai.cutlass.internal.git"
+fi
+
+# Clone if not present, else fetch and checkout correct branch
 if [ ! -d "$SYCL_TLA_DIR/.git" ]; then
   echo "Source not found, cloning..."
-  git clone https://github.com/intel/sycl-tla.git "$SYCL_TLA_DIR"
+  git clone --branch "$SYCL_TLA_BRANCH" "$SYCL_TLA_REPO" "$SYCL_TLA_DIR"
+else
+  cd "$SYCL_TLA_DIR"
+  git remote set-url origin "$SYCL_TLA_REPO"
+  git fetch origin
+  git checkout "$SYCL_TLA_BRANCH"
+  git reset --hard "origin/$SYCL_TLA_BRANCH"
+  cd -
 fi
 
 cd "$SYCL_TLA_DIR"
 OLD_HEAD=$(git rev-parse HEAD)
-git pull
+git pull origin "$SYCL_TLA_BRANCH"
 NEW_HEAD=$(git rev-parse HEAD)
 
 if [[ "$OLD_HEAD" != "$NEW_HEAD" || ! -d "$BUILD_DIR" ]]; then

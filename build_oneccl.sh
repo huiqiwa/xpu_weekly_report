@@ -15,6 +15,13 @@ BUILD_ARTIFACT="${BUILD_DIR}/src/libccl.so.1.0"
 BACKUP_SUFFIX=".bak.$(date +%Y%m%d%H%M%S)"
 MAKE_JOBS="$(nproc)"
 
+GITHUB_TOKEN_FILE="$SCRIPT_DIR/.github_token"
+if [ -f "$GITHUB_TOKEN_FILE" ]; then
+  GITHUB_TOKEN=$(cat "$GITHUB_TOKEN_FILE")
+  ONECCL_REPO="https://${GITHUB_TOKEN}@github.com/intel-innersource/libraries.performance.communication.oneccl.git"
+fi
+
+
 # --- Parse arguments ---
 DO_BUILD=true
 DO_REPLACE=true
