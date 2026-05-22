@@ -31,6 +31,9 @@ def parse_args():
                         help="Output CSV path (default: gemm_results_<timestamp>.csv)")
     parser.add_argument("--iters", type=int, default=10, help="Benchmark iterations")
     parser.add_argument("--warmup", type=int, default=2, help="Warmup iterations")
+    parser.add_argument("--backend", type=str, nargs="+", default=None,
+                        choices=["pytorch", "flashinfer", "cublas"],
+                        help="Backends to test (default: all)")
     return parser.parse_args()
 
 
@@ -176,7 +179,7 @@ def main():
     csv_file.flush()
 
     # Backends to test in order
-    BACKENDS = ["pytorch", "flashinfer", "cublas"]
+    BACKENDS = args.backend if args.backend else ["pytorch", "flashinfer", "cublas"]
 
     total_runs = len(BACKENDS) * len(DTYPE_CONFIGS) * len(cases)
     run_idx = 0

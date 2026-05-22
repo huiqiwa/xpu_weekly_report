@@ -169,13 +169,14 @@ def bench_nvfp4():
     assert K % (block_size * 2) == 0, f"K ({K}) must be divisible by {block_size * 2} for NVFP4"
 
     # Packed FP4: each byte holds 2 fp4 values, so K//2 columns
+    # mm_fp4 expects a: [M, K//2] row-major, b: [K//2, N] column-major
     a = torch.randint(0, 256, (M, K // 2), dtype=torch.uint8, device=device)
-    b = torch.randint(0, 256, (K // 2, N), dtype=torch.uint8, device=device)
+    b = torch.randint(0, 256, (N, K // 2), dtype=torch.uint8, device=device).t()
 
-    # Block scales: one scale per block_size elements
-    # a_descale: (M, K // block_size), b_descale: (K, N // block_size)
+    # Block scales: one scale per block_size FP4 elements
+    # a_descale: (M, K // block_size), b_descale: (K // block_size, N) column-major
     a_descale = torch.ones(M, K // block_size, dtype=torch.float8_e4m3fn, device=device)
-    b_descale = torch.ones(K, N // block_size, dtype=torch.float8_e4m3fn, device=device)
+    b_descale = torch.ones(N, K // block_size, dtype=torch.float8_e4m3fn, device=device).t()
     alpha = torch.tensor(1.0, dtype=torch.float32, device=device)
 
     print(f"  A: {list(a.shape)} (packed uint8), B: {list(b.shape)} (packed uint8)")

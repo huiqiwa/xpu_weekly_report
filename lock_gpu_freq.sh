@@ -65,6 +65,12 @@ case "$ACTION" in
         # Lock memory clock to max
         $SUDO nvidia-smi -i "$GPU_IDS" -lmc "$MAX_MEM","$MAX_MEM"
 
+        # Set CPU governor to performance
+        echo ""
+        echo "Setting CPU governor to performance..."
+        $SUDO sh -c 'echo performance | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor > /dev/null'
+        echo "  CPU governor: $(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor)"
+
         echo ""
         echo "GPU frequency locked. Verifying:"
         nvidia-smi --query-gpu=index,clocks.current.graphics,clocks.current.memory --format=csv -i "$GPU_IDS"
