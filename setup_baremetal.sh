@@ -1,6 +1,6 @@
 BANNER="============================================================"
 STEP=0
-TOTAL=11
+TOTAL=12
 step_banner() { STEP=$((STEP + 1)); echo -e "\n$BANNER\n  [$STEP/$TOTAL] $1\n$BANNER"; }
 
 step_banner "Installing system packages"
@@ -14,6 +14,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 step_banner "Activating environment"
 source "$SCRIPT_DIR/activate_env.sh"
+
+step_banner "Updating IGC"
+bash "$SCRIPT_DIR/update_igc.sh"
 
 step_banner "Installing PyTorch"
 pip install torch==2.11.0+xpu pyyaml --extra-index-url https://download.pytorch.org/whl/xpu

@@ -21,3 +21,5 @@ conda activate "$CONDA_ENV"
 
 source /opt/intel/oneapi/setvars.sh --force
 source /opt/intel/oneapi/ccl/latest/env/vars.sh --force
+
+export LD_LIBRARY_PATH=/usr/local/lib/:$LD_LIBRARY_PATH
