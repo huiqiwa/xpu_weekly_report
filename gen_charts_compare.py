@@ -11,26 +11,80 @@ import re as _re
 _script_dir = os.path.dirname(os.path.abspath(__file__))
 _reports_root = os.path.join(_script_dir, "reports")
 
-def _resolve_default_report_dir():
-    candidates = sorted(
-        [d for d in glob.glob(os.path.join(glob.escape(_reports_root), "reports_*")) if os.path.isdir(d)]
-    )
-    if not candidates:
-        raise FileNotFoundError(f"No report directories found under: {_reports_root}")
-    base = candidates[-1]
-    intel_root = os.path.join(base, "INTEL")
+def _resolve_device_dir(report_base):
+    """Given a reports_* directory, resolve to the first INTEL/<device> subdir."""
+    intel_root = os.path.join(report_base, "INTEL")
     devices = [p for p in sorted(glob.glob(os.path.join(glob.escape(intel_root), "*"))) if os.path.isdir(p)]
     if not devices:
         raise FileNotFoundError(f"No device directory found under: {intel_root}")
     return devices[0]
 
-REPORT_DIR = sys.argv[1] if len(sys.argv) > 1 else _resolve_default_report_dir()
-# Extract timestamp from report dir path (e.g. "reports_2026-04-08-10-41-53" -> "2026-04-08-10-41-53")
+def _resolve_default_report_dirs():
+    """Resolve report directories. Returns (new_dir, old_dir_or_None)."""
+    candidates = sorted(
+        [d for d in glob.glob(os.path.join(glob.escape(_reports_root), "reports_*")) if os.path.isdir(d)]
+    )
+    if not candidates:
+        raise FileNotFoundError(f"No report directories found under: {_reports_root}")
+    new_dir = _resolve_device_dir(candidates[-1])
+    old_dir = _resolve_device_dir(candidates[-2]) if len(candidates) >= 2 else None
+    return new_dir, old_dir
+
+def _extract_timestamp(path):
+    m = _re.search(r'reports_(\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2})', path)
+    return m.group(1) if m else None
+
+# ── CLI argument parsing ──────────────────────────────────────
+# Usage:
+#   gen_charts.py                       -> compare latest two reports
+#   gen_charts.py <dir>                 -> single report
+#   gen_charts.py <old_dir> <new_dir>   -> compare old vs new
+#   gen_charts.py <old_dir> <new_dir> <output.html>
+COMPARE_MODE = False
+REPORT_DIR_OLD = None
+
+if len(sys.argv) == 1:
+    # No args: use latest two
+    REPORT_DIR, REPORT_DIR_OLD = _resolve_default_report_dirs()
+    COMPARE_MODE = REPORT_DIR_OLD is not None
+elif len(sys.argv) == 2:
+    # Single report dir: resolve it as new, auto-find previous as old
+    REPORT_DIR = _resolve_device_dir(sys.argv[1]) if os.path.isdir(os.path.join(sys.argv[1], "INTEL")) else sys.argv[1]
+    _ts_new_dir = _extract_timestamp(REPORT_DIR) or ""
+    _prev_candidates = sorted([
+        d for d in glob.glob(os.path.join(glob.escape(_reports_root), "reports_*")) if os.path.isdir(d)
+        and (_extract_timestamp(d) or "") < _ts_new_dir
+    ])
+    if _prev_candidates:
+        REPORT_DIR_OLD = _resolve_device_dir(_prev_candidates[-1])
+        COMPARE_MODE = True
+elif len(sys.argv) >= 3:
+    # Two report dirs (sort by timestamp so arg order doesn't matter)
+    dirs = [sys.argv[1], sys.argv[2]]
+    dirs = [_resolve_device_dir(d) if os.path.isdir(os.path.join(d, "INTEL")) else d for d in dirs]
+    ts = [_extract_timestamp(d) or "" for d in dirs]
+    if ts[0] > ts[1]:
+        dirs = [dirs[1], dirs[0]]
+    REPORT_DIR_OLD = dirs[0]
+    REPORT_DIR = dirs[1]
+    COMPARE_MODE = True
+
+# Extract timestamp from report dir path
 _ts_match = _re.search(r'reports_(\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2})', REPORT_DIR)
 os.makedirs(_reports_root, exist_ok=True)
 _default_out = os.path.join(_reports_root, "reports-{}.html".format(_ts_match.group(1))) if _ts_match else os.path.join(_reports_root, "all-ops-chart.html")
-OUT_HTML = sys.argv[2] if len(sys.argv) > 2 else _default_out
+OUT_HTML = sys.argv[3] if len(sys.argv) > 3 else _default_out
 ARCH_NAME = os.path.basename(REPORT_DIR.rstrip('/'))
+
+# Labels for compare mode
+_ts_new = _extract_timestamp(REPORT_DIR) or "This Week"
+_ts_old = _extract_timestamp(REPORT_DIR_OLD) if REPORT_DIR_OLD else "Last Week"
+# Short date for chart display (YYYY-MM-DD)
+LABEL_NEW = _ts_new[:10] if _ts_new and len(_ts_new) >= 10 else _ts_new
+LABEL_OLD = _ts_old[:10] if _ts_old and len(_ts_old) >= 10 else _ts_old
+# Legend names shown in the legend selector
+LEGEND_NEW = "This Week (" + LABEL_NEW + ")"
+LEGEND_OLD = "Last Week (" + LABEL_OLD + ")"
 
 # ── Per-op config ──────────────────────────────────────────────
 # x_fields: columns usable as X axis (first is default)
@@ -157,8 +211,8 @@ Y_LABEL_MAP.update({
 
 # ── Data loading ──────────────────────────────────────────────
 
-def load_ops():
-    csv_files = sorted(glob.glob(os.path.join(glob.escape(REPORT_DIR), "*", "*", "*.csv")))
+def load_ops(report_dir):
+    csv_files = sorted(glob.glob(os.path.join(glob.escape(report_dir), "*", "*", "*.csv")))
     ops = OrderedDict()
     for path in csv_files:
         parts = path.split(os.sep)
@@ -229,7 +283,7 @@ def get_config(op_name, header):
 def esc(s):
     return str(s).replace("&", "&amp;").replace('"', "&quot;").replace("<", "&lt;").replace(">", "&gt;")
 
-def gen_op_section(op_name, rows):
+def gen_op_section(op_name, rows, old_rows=None):
     header = list(rows[0].keys())
     x_fields, filter_cols = get_config(op_name, header)
 
@@ -509,6 +563,133 @@ def gen_op_section(op_name, rows):
 
     y_map_json = json.dumps({v: lb for v, lb in op_y_options}, ensure_ascii=False)
 
+    # Process old_rows for comparison mode
+    old_data_var = "old_data_" + op_id
+    old_json_rows = []
+    if old_rows:
+        for r in old_rows:
+            row = {}
+            for k, v in r.items():
+                try:
+                    row[k] = float(v)
+                except (ValueError, TypeError):
+                    row[k] = v
+            mem_bw = row.get("mem_bw(GB/s)", 0) or 0
+            row["MBU(%)"] = round(float(mem_bw) / HW_MEM_BW_GBs * 100, 2) if HW_MEM_BW_GBs else 0
+            flops = row.get("calc_flops_power(tflops)", 0) or 0
+            if op_name in ("sage_attention_page", "sage_attention_decode_page", "sage_attention_v1"):
+                peak = HW_PEAK_TFLOPS_INT8
+            else:
+                dtype = str(row.get("dtype", "")).lower()
+                if dtype in ("float32", "fp32", "tf32", "tfloat32"):
+                    peak = HW_PEAK_TFLOPS_FP32
+                elif dtype in ("int8",):
+                    peak = HW_PEAK_TFLOPS_INT8
+                else:
+                    peak = HW_PEAK_TFLOPS_FP16
+            row["MFU(%)"] = round(float(flops) / peak * 100, 2) if peak else 0
+            old_json_rows.append(row)
+
+    has_old = bool(old_json_rows)
+    old_data_js = 'var {} = {};\n'.format(old_data_var, json.dumps(old_json_rows, separators=(",", ":"))) if has_old else ""
+
+    # Build series JS - two lines in compare mode
+    if has_old:
+        # Build old cascade block: filter old data using current dropdown values
+        # Use tolerant filtering: if no rows match a filter value, skip that filter
+        old_cascade_block = ""
+        for col, _ in filter_info:
+            safe_col = col.replace("(", "_").replace(")", "_")
+            if col == "schema":
+                old_cascade_block += '  var ofv_{sc} = document.getElementById("f_{oid}_{col}").value;\n'.format(
+                    sc=safe_col, oid=op_id, col=col)
+                old_cascade_block += '  oldSub = oldSub.filter(function(r) {{ return String(r["{col}"]) === ofv_{sc}; }});\n'.format(
+                    col=col, sc=safe_col)
+                continue
+            if has_schema_filter:
+                old_cascade_block += '  if (validFs.indexOf("{col}") >= 0) {{\n'.format(col=col)
+                ind = "    "
+            else:
+                ind = "  "
+            old_cascade_block += '{ind}var ofv_{sc} = document.getElementById("f_{oid}_{col}").value;\n'.format(ind=ind, sc=safe_col, oid=op_id, col=col)
+            old_cascade_block += '{ind}oldSub = oldSub.filter(function(r) {{ return String(r["{col}"]) === ofv_{sc}; }});\n'.format(ind=ind, col=col, sc=safe_col)
+            if has_schema_filter:
+                old_cascade_block += '  }\n'
+
+        # X-field filters for old data
+        for f, _ in x_field_uvals:
+            safe_f = f.replace("(", "_").replace(")", "_")
+            if has_schema_filter:
+                old_cascade_block += '  if ("{col}" !== xF && validXs.indexOf("{col}") >= 0) {{\n'.format(col=f)
+            else:
+                old_cascade_block += '  if ("{col}" !== xF) {{\n'.format(col=f)
+            old_cascade_block += '    var oxfv_{sc} = document.getElementById("xf_{oid}_{col}").value;\n'.format(sc=safe_f, oid=op_id, col=f)
+            old_cascade_block += '    oldSub = oldSub.filter(function(r) {{ return String(r["{col}"]) === oxfv_{sc}; }});\n'.format(col=f, sc=safe_f)
+            old_cascade_block += '  }\n'
+
+        series_js = (
+            '\n  // Filter old data with same filter values\n'
+            '  var oldSub = ' + old_data_var + '.slice();\n'
+            + old_cascade_block +
+            '  oldSub.sort(function(a,b){ return Number(a[xF]) - Number(b[xF]); });\n'
+            '  var oldXD = [], oldYD = [];\n'
+            '  for (var i=0; i<oldSub.length; i++) { oldXD.push(String(oldSub[i][xF])); oldYD.push(oldSub[i][yF]); }\n'
+            '  // Align old data to new x-axis (new data is primary)\n'
+            '  var oldYAligned = xD.map(function(x) { var idx = oldXD.indexOf(x); return idx >= 0 ? oldYD[idx] : null; });\n'
+            '  var hasOldData = oldYAligned.some(function(v) { return v !== null; });\n'
+        )
+
+        series_template = '''(function() {
+      var s = [{ name: "''' + LEGEND_NEW + '''", type: "line", smooth: true, symbol: "circle", symbolSize: 7,
+                data: yD.map(function(v) {
+                  if (v === null) return null;
+                  if ((yF === "MFU(%)" || yF === "MBU(%)") && Number(v) > 100)
+                    return { value: v, itemStyle: { color: "#f56c6c" }, label: { color: "#f56c6c", fontWeight: "bold" } };
+                  return v;
+                }),
+                lineStyle: { width: 2.5 }, areaStyle: { opacity: 0.08 },
+                label: { show: true, fontSize: 11, color: "#409eff", position: "top",
+                         formatter: function(p) { return p.value == null ? "" : p.value; } },
+                itemStyle: { color: "#409eff" },
+                markLine: (yF === "MFU(%)" || yF === "MBU(%)") ? {
+                  silent: true, symbol: "none",
+                  data: [{ yAxis: 100, label: { formatter: "100%", position: "insideEndTop" },
+                           lineStyle: { color: "#f56c6c", type: "dashed", width: 2 } }]
+                } : {} }];
+      if (hasOldData) {
+        s.push({ name: "''' + LEGEND_OLD + '''", type: "line", smooth: true, symbol: "diamond", symbolSize: 6,
+                data: oldYAligned,
+                lineStyle: { width: 2, type: "dashed" }, areaStyle: { opacity: 0.04 },
+                label: { show: false },
+                itemStyle: { color: "#909399" } });
+      }
+      return s;
+    })()'''
+    else:
+        series_js = ""
+        series_template = '''[{ name: yL, type: "line", smooth: true, symbol: "circle", symbolSize: 7,
+                data: yD.map(function(v) {
+                  if ((yF === "MFU(%)" || yF === "MBU(%)") && Number(v) > 100)
+                    return { value: v, itemStyle: { color: "#f56c6c" }, label: { color: "#f56c6c", fontWeight: "bold" } };
+                  return v;
+                }),
+                lineStyle: { width: 2.5 }, areaStyle: { opacity: 0.08 },
+                label: { show: true, fontSize: 11, color: "#333", position: "top" },
+                itemStyle: { color: "#409eff" },
+                markLine: (yF === "MFU(%)" || yF === "MBU(%)") ? {
+                  silent: true, symbol: "none",
+                  data: [{ yAxis: 100, label: { formatter: "100%", position: "insideEndTop" },
+                           lineStyle: { color: "#f56c6c", type: "dashed", width: 2 } }]
+                } : {} }]'''
+
+    legend_js = '    legend: { show: hasOldData, top: 55 },\n' if has_old else ''
+    tooltip_js = '''    tooltip: { trigger: "axis", axisPointer: { type: "cross" } },''' if has_old else '''    tooltip: { trigger: "axis", axisPointer: { type: "cross" },
+      formatter: function(params) {
+        var p = params[0];
+        return "<b>" + xF + ": " + p.name + "</b><br/>" + p.marker + " " + yL + ": <b>" + p.data + "</b>";
+      }
+    },'''
+
     section = '''
 <div class="op" id="s_{oid}">
   <h2>{name}</h2>
@@ -524,83 +705,77 @@ def gen_op_section(op_name, rows):
 </div>
 <script>
 var {dvar} = {jdata};
-{schema_vars}var chart_{oid} = echarts.init(document.getElementById("c_{oid}"));
-function render_{oid}() {{
+{old_data_js}{schema_vars}var chart_{oid} = echarts.init(document.getElementById("c_{oid}"));
+function render_{oid}() {
 {schema_prefix}  var xF = document.getElementById("x_{oid}").value;
   var yF = document.getElementById("y_{oid}").value;
   var yL = {ymap}[yF] || yF;
 {xf_vis}  var rows = {dvar};
   var sub = rows.slice();
-{cascade_block}  sub.sort(function(a,b){{ return Number(a[xF]) - Number(b[xF]); }});
+{cascade_block}  sub.sort(function(a,b){ return Number(a[xF]) - Number(b[xF]); });
   var xD = [], yD = [];
-  for (var i=0; i<sub.length; i++) {{ xD.push(String(sub[i][xF])); yD.push(sub[i][yF]); }}
+  for (var i=0; i<sub.length; i++) { xD.push(String(sub[i][xF])); yD.push(sub[i][yF]); }
   var info = "X: " + xF + "  |  Y: " + yL;
-{cascade_info}  var yMax = Math.max.apply(null, yD.map(Number));
-  var yAxisCfg = {{ name: yL, type: "value",
-              axisLine: {{ show: true, lineStyle: {{ color: "#409eff" }} }},
-              splitLine: {{ lineStyle: {{ type: "dashed", color: "#eee" }} }} }};
-  if ((yF === "MFU(%)" || yF === "MBU(%)") && yMax < 100) {{ yAxisCfg.min = 0; yAxisCfg.max = 100; }}
-  chart_{oid}.setOption({{
-    title: {{ text: "{name_esc}", subtext: info, left: "center" }},
-    tooltip: {{ trigger: "axis", axisPointer: {{ type: "cross" }},
-      formatter: function(params) {{
-        var p = params[0];
-        return "<b>" + xF + ": " + p.name + "</b><br/>" + p.marker + " " + yL + ": <b>" + p.data + "</b>";
-      }}
-    }},
-    grid: {{ top: 80, left: 80, right: 80, bottom: 60 }},
-    xAxis: {{ name: xF, type: "category", data: xD, axisLabel: {{ rotate: 30 }},
+{cascade_info}{series_js}  var yMax = Math.max.apply(null, yD.map(Number));
+  var yAxisCfg = { name: yL, type: "value",
+              axisLine: { show: true, lineStyle: { color: "#409eff" } },
+              splitLine: { lineStyle: { type: "dashed", color: "#eee" } } };
+  if ((yF === "MFU(%)" || yF === "MBU(%)") && yMax < 100) { yAxisCfg.min = 0; yAxisCfg.max = 100; }
+  chart_{oid}.setOption({
+    title: { text: "{name_esc}", subtext: info, left: "center", top: 0, subtextStyle: { fontSize: 12 } },
+{legend_js}{tooltip_js}
+    grid: { top: {grid_top}, left: 80, right: 80, bottom: 60 },
+    xAxis: { name: xF, type: "category", data: xD, axisLabel: { rotate: 30 },
               nameLocation: "middle", nameGap: 40,
-              axisTick: {{ alignWithLabel: true }},
-              splitLine: {{ show: true, lineStyle: {{ type: "dashed", color: "#eee" }} }} }},
+              axisTick: { alignWithLabel: true },
+              splitLine: { show: true, lineStyle: { type: "dashed", color: "#eee" } } },
     yAxis: yAxisCfg,
-    series: [{{ name: yL, type: "line", smooth: true, symbol: "circle", symbolSize: 7,
-                data: yD.map(function(v) {{
-                  if ((yF === "MFU(%)" || yF === "MBU(%)") && Number(v) > 100)
-                    return {{ value: v, itemStyle: {{ color: "#f56c6c" }}, label: {{ color: "#f56c6c", fontWeight: "bold" }} }};
-                  return v;
-                }}),
-                lineStyle: {{ width: 2.5 }}, areaStyle: {{ opacity: 0.08 }},
-                label: {{ show: true, fontSize: 11, color: "#333", position: "top" }},
-                itemStyle: {{ color: "#409eff" }},
-                markLine: (yF === "MFU(%)" || yF === "MBU(%)") ? {{
-                  silent: true, symbol: "none",
-                  data: [{{ yAxis: 100, label: {{ formatter: "100%", position: "insideEndTop" }},
-                           lineStyle: {{ color: "#f56c6c", type: "dashed", width: 2 }} }}]
-                }} : {{}} }}]
-  }}, true);
-}}
+    series: {series_template}
+  }, true);
+}
 render_{oid}();
-window.addEventListener("resize", function(){{ chart_{oid}.resize(); }});
+window.addEventListener("resize", function(){ chart_{oid}.resize(); });
 </script>
-'''.format(
-        oid=op_id,
-        name=esc(op_name),
-        name_esc=op_name.replace('"', '\\"'),
-        x_opts=x_opts,
-        y_opts=y_opts,
-        pre_filter_html=pre_filter_html,
-        filter_html=filter_html,
-        xfilter_html=xfilter_html,
-        dvar=data_var,
-        jdata=json.dumps(json_rows, separators=(",", ":")),
-        ymap=y_map_json,
-        schema_vars=schema_js_vars,
-        schema_prefix=schema_render_prefix,
-        xf_vis=xfilter_visibility,
-        cascade_block=cascade_block,
-        cascade_info=cascade_info,
-    )
+'''
+    # Use manual replacement instead of .format() to avoid issues with
+    # literal JS braces in cascade_block, series_js, etc.
+    replacements = [
+        ('{name_esc}', op_name.replace('"', '\\"')),
+        ('{oid}', op_id),
+        ('{name}', esc(op_name)),
+        ('{x_opts}', x_opts),
+        ('{y_opts}', y_opts),
+        ('{pre_filter_html}', pre_filter_html),
+        ('{filter_html}', filter_html),
+        ('{xfilter_html}', xfilter_html),
+        ('{dvar}', data_var),
+        ('{old_data_js}', old_data_js),
+        ('{ymap}', y_map_json),
+        ('{schema_vars}', schema_js_vars),
+        ('{schema_prefix}', schema_render_prefix),
+        ('{xf_vis}', xfilter_visibility),
+        ('{cascade_block}', cascade_block),
+        ('{cascade_info}', cascade_info),
+        ('{series_js}', series_js),
+        ('{legend_js}', legend_js),
+        ('{tooltip_js}', tooltip_js),
+        ('{grid_top}', str(120 if has_old else 80)),
+        ('{series_template}', series_template),
+        ('{jdata}', json.dumps(json_rows, separators=(",", ":"))),
+    ]
+    for k, v in replacements:
+        section = section.replace(k, v)
     return section
 
 
-def gen_html(ops, ordered_names):
+def gen_html(ops, ordered_names, old_ops=None):
     nav_links = "".join('<a href="#s_{n}">{n}</a>'.format(n=n) for n in ordered_names)
 
     sections = ""
     for name in ordered_names:
         if name in ops:
-            sections += gen_op_section(name, ops[name])
+            old_rows = old_ops.get(name) if old_ops else None
+            sections += gen_op_section(name, ops[name], old_rows=old_rows)
 
     return '''<!DOCTYPE html>
 <html>
@@ -654,14 +829,16 @@ select:focus { outline: none; border-color: #409eff; box-shadow: 0 0 0 2px rgba(
 
 
 # ── Main ──────────────────────────────────────────────
-ops = load_ops()
+ops = load_ops(REPORT_DIR)
+old_ops = load_ops(REPORT_DIR_OLD) if COMPARE_MODE and REPORT_DIR_OLD else None
 ordered = [n for n in OP_ORDER if n in ops]
 remaining = sorted(n for n in ops if n not in ordered)
 ordered.extend(remaining)
 
-html = gen_html(ops, ordered)
+html = gen_html(ops, ordered, old_ops=old_ops)
 with open(OUT_HTML, "w") as f:
     f.write(html)
 
-print("Generated {} with {} ops from {} rows.".format(
-    OUT_HTML, len([n for n in ordered if n in ops]), sum(len(v) for v in ops.values())))
+mode_str = " (compare: {} vs {})".format(LABEL_OLD, LABEL_NEW) if COMPARE_MODE else ""
+print("Generated {} with {} ops from {} rows.{}".format(
+    OUT_HTML, len([n for n in ordered if n in ops]), sum(len(v) for v in ops.values()), mode_str))
