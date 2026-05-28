@@ -9,7 +9,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ONECCL_REPO="https://github.com/intel-innersource/libraries.performance.communication.oneccl.git"
 ONECCL_SRC="/workspace/libraries.performance.communication.oneccl"
-ONECCL_BRANCH="master"
+ONECCL_BRANCH="release/ccl_2022.0.0-gold"
 BUILD_DIR="${ONECCL_SRC}/build"
 BUILD_ARTIFACT="${BUILD_DIR}/src/libccl.so.1.0"
 BACKUP_SUFFIX=".bak.$(date +%Y%m%d%H%M%S)"
