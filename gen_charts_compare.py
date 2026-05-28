@@ -333,6 +333,15 @@ def gen_op_section(op_name, rows, old_rows=None):
                            and sum(1 for r in rows if r.get(f) not in (None, "")) > len(rows) / 2]
     if not x_fields_multi:
         x_fields_multi = x_fields[:1]
+
+    # Track single-value x_fields that are being dropped — needed to constrain old data in compare mode
+    _dropped_xfields = {}  # field -> single value (string)
+    for f in x_fields:
+        if f not in x_fields_multi:
+            uv = unique_values(rows, f)
+            if len(uv) == 1:
+                _dropped_xfields[f] = str(uv[0])
+
     x_fields = x_fields_multi
 
     # JSON rows — compute MFU and MBU
@@ -626,6 +635,12 @@ def gen_op_section(op_name, rows, old_rows=None):
             old_cascade_block += '    var oxfv_{sc} = document.getElementById("xf_{oid}_{col}").value;\n'.format(sc=safe_f, oid=op_id, col=f)
             old_cascade_block += '    oldSub = oldSub.filter(function(r) {{ return String(r["{col}"]) === oxfv_{sc}; }});\n'.format(col=f, sc=safe_f)
             old_cascade_block += '  }\n'
+
+        # Constrain old data by single-value x_fields that were dropped from new data
+        # (e.g., new data only has K=4096, so old data must also be filtered to K=4096)
+        for dropped_f, dropped_v in _dropped_xfields.items():
+            old_cascade_block += '  // Implicit filter: new data only has {col}={val}\n'.format(col=dropped_f, val=dropped_v)
+            old_cascade_block += '  oldSub = oldSub.filter(function(r) {{ return String(r["{col}"]) === "{val}"; }});\n'.format(col=dropped_f, val=dropped_v)
 
         series_js = (
             '\n  // Filter old data with same filter values\n'

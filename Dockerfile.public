@@ -1,0 +1,105 @@
+FROM intel/oneapi:2025.3.1-0-devel-ubuntu24.04
+
+ENV PATH="/opt/intel/oneapi/compiler/latest/bin/compiler:${PATH}" \
+    PIP_BREAK_SYSTEM_PACKAGES=1 \
+    PIP_EXTRA_INDEX_URL=https://download.pytorch.org/whl/xpu \
+    CMAKE_C_COMPILER_LAUNCHER=ccache \
+    CMAKE_CXX_COMPILER_LAUNCHER=ccache
+
+RUN apt update && \
+    apt install -y --no-install-recommends \
+        python3.12 python3.12-dev python3-pip python-is-python3 \
+        ninja-build ccache intel-ocloc \
+        curl wget git vim
+
+# Install UMD (compute runtime + level-zero)
+RUN mkdir neo && \
+    cd neo && \
+    wget https://github.com/intel/intel-graphics-compiler/releases/download/v2.24.8/intel-igc-core-2_2.24.8+20344_amd64.deb && \
+    wget https://github.com/intel/intel-graphics-compiler/releases/download/v2.24.8/intel-igc-opencl-2_2.24.8+20344_amd64.deb && \
+    wget https://github.com/intel/compute-runtime/releases/download/25.48.36300.8/intel-ocloc_25.48.36300.8-0_amd64.deb && \
+    wget https://github.com/intel/compute-runtime/releases/download/25.48.36300.8/intel-opencl-icd_25.48.36300.8-0_amd64.deb && \
+    wget https://github.com/intel/compute-runtime/releases/download/25.48.36300.8/libigdgmm12_22.8.2_amd64.deb && \
+    wget https://github.com/intel/compute-runtime/releases/download/25.48.36300.8/libze-intel-gpu1_25.48.36300.8-0_amd64.deb && \
+    wget https://github.com/oneapi-src/level-zero/releases/download/v1.26.0/level-zero_1.26.0+u24.04_amd64.deb && \
+    dpkg -i *.deb || apt-get install -f -y && \
+    cd .. && \
+    rm -rf neo
+
+# Install oneCCL with BMG support
+ARG ONECCL_INSTALLER="intel-oneccl-2021.15.9.14_offline.sh"
+RUN wget "https://github.com/uxlfoundation/oneCCL/releases/download/2021.15.9/${ONECCL_INSTALLER}" && \
+    bash "${ONECCL_INSTALLER}" -a --silent --eula accept && \
+    rm "${ONECCL_INSTALLER}" && \
+    rm -f /opt/intel/oneapi/ccl/latest && \
+    ln -s /opt/intel/oneapi/ccl/2021.15 /opt/intel/oneapi/ccl/latest
+
+ENV LD_LIBRARY_PATH="/usr/local/lib/:$LD_LIBRARY_PATH"
+
+# Install PyTorch and dependencies (no conda/venv, direct system pip)
+RUN pip install torch==2.12.0+xpu pyyaml --extra-index-url https://download.pytorch.org/whl/xpu && \
+    (pip uninstall oneccl oneccl-devel -y || true) && \
+    pip install numpy ninja
+
+SHELL ["/bin/bash", "-c"]
+
+WORKDIR /workspace
+
+RUN git config --global --add safe.directory '*'
+
+RUN echo "source /opt/intel/oneapi/setvars.sh --force" >> /root/.bashrc && \
+    echo "source /opt/intel/oneapi/ccl/2021.15/env/vars.sh --force" >> /root/.bashrc
+
+# Make oneAPI environment available for subsequent RUN steps
+# Each RUN that needs icx/icpx must source setvars first
+RUN source /opt/intel/oneapi/setvars.sh --force && \
+    source /opt/intel/oneapi/ccl/2021.15/env/vars.sh --force && \
+    pip install https://github.com/vllm-project/vllm-xpu-kernels/releases/download/v0.1.8.2/vllm_xpu_kernels-0.1.8.2-cp38-abi3-manylinux_2_28_x86_64.whl
+
+# Build sycl-tla
+RUN source /opt/intel/oneapi/setvars.sh --force && \
+    source /opt/intel/oneapi/ccl/2021.15/env/vars.sh --force && \
+    git clone https://github.com/intel/sycl-tla.git /workspace/sycl-tla && \
+    cd /workspace/sycl-tla && \
+    mkdir build && cd build && \
+    cmake .. \
+      -G Ninja \
+      -DCUTLASS_ENABLE_SYCL=ON \
+      -DDPCPP_SYCL_TARGET=intel_gpu_bmg_g21 \
+      -DCMAKE_CXX_COMPILER=icpx \
+      -DCMAKE_C_COMPILER=icx \
+      -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+      -DCMAKE_CXX_COMPILER_LAUNCHER=ccache && \
+    ninja -j32 $(ninja -t targets all | grep -oE '^(06_|00_)[^:]+')
+
+# Build oneDNN
+RUN source /opt/intel/oneapi/setvars.sh --force && \
+    source /opt/intel/oneapi/ccl/2021.15/env/vars.sh --force && \
+    git clone https://github.com/uxlfoundation/oneDNN.git /workspace/oneDNN && \
+    cd /workspace/oneDNN && \
+    cmake -S . -B build \
+      -DCMAKE_BUILD_TYPE=Release \
+      -DCMAKE_C_COMPILER=icx \
+      -DCMAKE_CXX_COMPILER=icpx \
+      -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+      -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+      -DDNNL_CPU_RUNTIME=OMP \
+      -DDNNL_GPU_RUNTIME=SYCL \
+      -DDNNL_GPU_VENDOR=INTEL \
+      -DDNNL_ENABLE_PRIMITIVE_GPU_ISA=XE2 && \
+    cmake --build build -j64
+
+# Prepare xpu-perf (copy from local, can't clone)
+# Build context must be the parent dir: docker build -f xpu_weekly_report/Dockerfile ..
+COPY xpu-perf /workspace/xpu-perf
+RUN cd /workspace/xpu-perf && \
+    pip install --no-build-isolation --no-deps -e . && \
+    pip install --ignore-installed blinker -r projects/micro_perf/requirements.txt
+
+# Build SYCL extensions for xpu-perf (inline, no activate_env needed)
+RUN source /opt/intel/oneapi/setvars.sh --force && \
+    source /opt/intel/oneapi/ccl/2021.15/env/vars.sh --force && \
+    cd /workspace/xpu-perf/projects/micro_perf/vendor_ops/INTEL/ops/sycl_ext && \
+    bash build.sh
+
+CMD ["/bin/bash", "-i"]
